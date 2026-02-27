@@ -1,0 +1,5 @@
+{
+  "app": { "title": "纳音五行计算" },
+  "form": { "mode": { "gregorian": "公历直排" } },
+  "result": { "pillars": { "year": "年柱" } }
+}
