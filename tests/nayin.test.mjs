@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { elementCount, getNayinByGanzhi } from '../app/utils/nayin.js'
+import { elementCompass, elementOrder } from '../app/utils/elements.js'
 
 test('甲子 maps to 海中金 and metal', () => {
   const r = getNayinByGanzhi('甲子')
@@ -12,4 +13,16 @@ test('elementCount totals pillars', () => {
   const result = elementCount(['甲子', '乙丑', '丙寅', '丁卯'])
   assert.equal(result.metal, 2)
   assert.equal(result.fire, 2)
+})
+
+test('five element order remains canonical', () => {
+  assert.deepEqual(elementOrder, ['wood', 'fire', 'earth', 'metal', 'water'])
+})
+
+test('five elements map to expected compass directions', () => {
+  assert.equal(elementCompass.wood, 'east')
+  assert.equal(elementCompass.fire, 'south')
+  assert.equal(elementCompass.earth, 'center')
+  assert.equal(elementCompass.metal, 'west')
+  assert.equal(elementCompass.water, 'north')
 })
