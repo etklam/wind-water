@@ -2,7 +2,8 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { computeNayinResult } from './composables/useNayinCalculator.js'
 import { messages } from './i18n/messages.js'
-import { elementCompass, elementOrder } from './utils/elements.js'
+import { elementOrder } from './utils/elements.js'
+import { nineGridCells } from './utils/nine-grid.js'
 
 const locale = ref('zh-Hant')
 const birthDate = ref('')
@@ -17,17 +18,6 @@ const stageFresh = ref(false)
 const locales = [
   { code: 'zh-Hant', label: '繁中' },
   { code: 'zh-Hans', label: '简中' }
-]
-
-const baguaRing = [
-  { id: 'qian', symbol: '☰', direction: 'northwest' },
-  { id: 'dui', symbol: '☱', direction: 'west' },
-  { id: 'li', symbol: '☲', direction: 'south' },
-  { id: 'zhen', symbol: '☳', direction: 'east' },
-  { id: 'xun', symbol: '☴', direction: 'southeast' },
-  { id: 'kan', symbol: '☵', direction: 'north' },
-  { id: 'gen', symbol: '☶', direction: 'northeast' },
-  { id: 'kun', symbol: '☷', direction: 'southwest' }
 ]
 
 const text = computed(() => messages[locale.value])
@@ -89,8 +79,24 @@ function elementStrength(key) {
   return result.value.totals[key] / max
 }
 
-function elementNodeStyle(key) {
-  return { '--strength': elementStrength(key).toFixed(3) }
+function cellStyle(cell) {
+  if (cell.kind !== 'element' || !result.value) {
+    return null
+  }
+  return { '--strength': elementStrength(cell.element).toFixed(3) }
+}
+
+function cellClass(cell) {
+  return [
+    'grid-cell',
+    `slot-${cell.slot}`,
+    `kind-${cell.kind}`,
+    cell.element ? `element-${cell.element}` : '',
+    {
+      active: cell.kind === 'element' && !!result.value,
+      dominant: cell.kind === 'element' && !!result.value && dominantElement.value === cell.element
+    }
+  ]
 }
 
 onBeforeUnmount(() => {
@@ -164,36 +170,30 @@ onBeforeUnmount(() => {
           <p class="rule" v-if="result">{{ t('result.rule') }}: {{ t(`rules.${result.meta.rule}`) }}</p>
         </header>
 
-        <div :class="['bagua-stage', { 'is-fresh': stageFresh, 'has-result': !!result }]">
-          <ul class="bagua-ring" aria-hidden="true">
-            <li v-for="item in baguaRing" :key="item.id">
-              <span class="trigram-symbol">{{ item.symbol }}</span>
-              <span class="trigram-name">{{ t(`bagua.trigrams.${item.id}`) }}</span>
-              <span class="trigram-direction">{{ t(`bagua.directions.${item.direction}`) }}</span>
-            </li>
-          </ul>
-
-          <div class="taiji-center">
-            <p class="center-title">{{ t('bagua.center') }}</p>
-            <p class="center-total" v-if="result">{{ t('bagua.highlight') }}: {{ t(`elements.${dominantElement}`) }}</p>
-            <p class="center-total" v-else>-</p>
-          </div>
-
-          <button
-            v-for="key in elementOrder"
-            :key="key"
-            type="button"
-            :class="[
-              'element-node',
-              `pos-${elementCompass[key]}`,
-              `element-${key}`,
-              { active: result, dominant: result && dominantElement === key }
-            ]"
-            :style="result ? elementNodeStyle(key) : null"
+        <div :class="['nine-grid-stage', { 'is-fresh': stageFresh, 'has-result': !!result }]">
+          <article
+            v-for="cell in nineGridCells"
+            :key="cell.slot"
+            :class="cellClass(cell)"
+            :style="cellStyle(cell)"
           >
-            <span>{{ t(`elements.${key}`) }}</span>
-            <strong>{{ result ? result.totals[key] : '-' }}</strong>
-          </button>
+            <template v-if="cell.kind === 'trigram'">
+              <span class="trigram-symbol">{{ cell.symbol }}</span>
+              <span class="trigram-name">{{ t(`bagua.trigrams.${cell.trigram}`) }}</span>
+              <span class="trigram-direction">{{ t(`bagua.directions.${cell.direction}`) }}</span>
+            </template>
+
+            <template v-else-if="cell.kind === 'center'">
+              <p class="center-title">{{ t('bagua.center') }}</p>
+              <p class="center-total">{{ result ? result.totals[cell.element] : '-' }}</p>
+            </template>
+
+            <template v-else>
+              <span class="element-name">{{ t(`elements.${cell.element}`) }}</span>
+              <strong class="element-value">{{ result ? result.totals[cell.element] : '-' }}</strong>
+              <span class="element-direction">{{ t(`bagua.directions.${cell.direction}`) }}</span>
+            </template>
+          </article>
         </div>
 
         <div class="pillars" v-if="result">

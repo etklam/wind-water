@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { elementCount, getNayinByGanzhi } from '../app/utils/nayin.js'
 import { elementCompass, elementOrder } from '../app/utils/elements.js'
+import { nineGridElements } from '../app/utils/nine-grid.js'
 
 test('甲子 maps to 海中金 and metal', () => {
   const r = getNayinByGanzhi('甲子')
@@ -25,4 +26,12 @@ test('five elements map to expected compass directions', () => {
   assert.equal(elementCompass.earth, 'center')
   assert.equal(elementCompass.metal, 'west')
   assert.equal(elementCompass.water, 'north')
+})
+
+test('nine-grid element mapping follows approved layout', () => {
+  assert.equal(nineGridElements.north, 'water')
+  assert.equal(nineGridElements.west, 'wood')
+  assert.equal(nineGridElements.center, 'earth')
+  assert.equal(nineGridElements.east, 'metal')
+  assert.equal(nineGridElements.south, 'fire')
 })
