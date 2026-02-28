@@ -6,7 +6,12 @@ export const messages = {
       birthTime: '出生時間',
       timezone: '時區',
       unknownHour: '未知時辰（僅算年/月/日）',
-      mode: { title: '排盤模式', gregorian: '公曆直排', traditional: '傳統規則（節氣/子初）' },
+      mode: {
+        title: '排盤模式',
+        gregorian: '公曆直排',
+        traditional: '傳統規則（節氣/子初）',
+        traditionalHelp: '傳統規則說明：以節氣切換月份，並以子初（23:00）作為換日界線。'
+      },
       submit: '開始計算'
     },
     result: {
@@ -54,7 +59,12 @@ export const messages = {
       birthTime: '出生时间',
       timezone: '时区',
       unknownHour: '未知时辰（仅算年/月/日）',
-      mode: { title: '排盘模式', gregorian: '公历直排', traditional: '传统规则（节气/子初）' },
+      mode: {
+        title: '排盘模式',
+        gregorian: '公历直排',
+        traditional: '传统规则（节气/子初）',
+        traditionalHelp: '传统规则说明：以节气切换月份，并以子初（23:00）作为换日界线。'
+      },
       submit: '开始计算'
     },
     result: {

@@ -23,6 +23,16 @@ const locales = [
 
 const text = computed(() => messages[locale.value])
 const timezoneOptions = computed(() => buildTimezoneOptions(timezone.value))
+const frameSectorPoints = {
+  south: '50,4 82,18 64,36 50,30',
+  southwest: '82,18 96,50 70,50 64,36',
+  west: '96,50 82,82 64,64 70,50',
+  northwest: '82,82 50,96 50,70 64,64',
+  north: '50,96 18,82 36,64 50,70',
+  northeast: '18,82 4,50 30,50 36,64',
+  east: '4,50 18,18 36,36 30,50',
+  southeast: '18,18 50,4 50,30 36,36'
+}
 
 const dominantElement = computed(() => {
   if (!result.value) {
@@ -82,7 +92,7 @@ function elementStrength(key) {
 }
 
 function cellStyle(cell) {
-  if (cell.kind !== 'element' || !result.value) {
+  if (!result.value) {
     return null
   }
   return { '--strength': elementStrength(cell.element).toFixed(3) }
@@ -90,13 +100,12 @@ function cellStyle(cell) {
 
 function cellClass(cell) {
   return [
-    'grid-cell',
-    `slot-${cell.slot}`,
-    `kind-${cell.kind}`,
+    'bagua-sector',
+    `sector-${cell.slot}`,
     cell.element ? `element-${cell.element}` : '',
     {
-      active: cell.kind === 'element' && !!result.value,
-      dominant: cell.kind === 'element' && !!result.value && dominantElement.value === cell.element
+      active: !!result.value,
+      dominant: !!result.value && dominantElement.value === cell.element
     }
   ]
 }
@@ -116,7 +125,7 @@ onBeforeUnmount(() => {
         <h1>{{ t('app.title') }}</h1>
       </div>
       <div class="top-actions">
-        <NuxtLink to="/about" class="about-link">關於本專案</NuxtLink>
+        <NuxtLink to="/about" class="about-link">使用說明</NuxtLink>
         <div class="lang-switch" role="group" aria-label="language switcher">
         <button
           v-for="item in locales"
@@ -179,29 +188,50 @@ onBeforeUnmount(() => {
           <p class="rule" v-if="result">{{ t('result.rule') }}: {{ t(`rules.${result.meta.rule}`) }}</p>
         </header>
 
-        <div :class="['nine-grid-stage', { 'is-fresh': stageFresh, 'has-result': !!result }]">
+        <div :class="['bagua-stage', { 'is-fresh': stageFresh, 'has-result': !!result }]">
+          <svg class="bagua-frame" viewBox="0 0 100 100" aria-hidden="true">
+            <polygon
+              v-for="cell in nineGridCells"
+              :key="`${cell.slot}-frame`"
+              :points="frameSectorPoints[cell.slot]"
+              :class="[
+                'frame-sector',
+                `element-${cell.element}`,
+                {
+                  active: !!result,
+                  dominant: !!result && dominantElement === cell.element
+                }
+              ]"
+              :style="cellStyle(cell)"
+            />
+            <polygon class="frame-ring outer" points="50,4 82,18 96,50 82,82 50,96 18,82 4,50 18,18" />
+            <polygon class="frame-ring inner" points="50,30 64,36 70,50 64,64 50,70 36,64 30,50 36,36" />
+            <line class="frame-spoke" x1="50" y1="30" x2="50" y2="4" />
+            <line class="frame-spoke" x1="64" y1="36" x2="82" y2="18" />
+            <line class="frame-spoke" x1="70" y1="50" x2="96" y2="50" />
+            <line class="frame-spoke" x1="64" y1="64" x2="82" y2="82" />
+            <line class="frame-spoke" x1="50" y1="70" x2="50" y2="96" />
+            <line class="frame-spoke" x1="36" y1="64" x2="18" y2="82" />
+            <line class="frame-spoke" x1="30" y1="50" x2="4" y2="50" />
+            <line class="frame-spoke" x1="36" y1="36" x2="18" y2="18" />
+          </svg>
+
+          <article class="bagua-center element-earth">
+            <p class="center-title">{{ t('bagua.center') }}</p>
+            <p class="center-total">{{ result ? result.totals.earth : '-' }}</p>
+          </article>
+
           <article
             v-for="cell in nineGridCells"
             :key="cell.slot"
             :class="cellClass(cell)"
             :style="cellStyle(cell)"
           >
-            <template v-if="cell.kind === 'trigram'">
-              <span class="trigram-symbol">{{ cell.symbol }}</span>
-              <span class="trigram-name">{{ t(`bagua.trigrams.${cell.trigram}`) }}</span>
-              <span class="trigram-direction">{{ t(`bagua.directions.${cell.direction}`) }}</span>
-            </template>
-
-            <template v-else-if="cell.kind === 'center'">
-              <p class="center-title">{{ t('bagua.center') }}</p>
-              <p class="center-total">{{ result ? result.totals[cell.element] : '-' }}</p>
-            </template>
-
-            <template v-else>
-              <span class="element-name">{{ t(`elements.${cell.element}`) }}</span>
-              <strong class="element-value">{{ result ? result.totals[cell.element] : '-' }}</strong>
-              <span class="element-direction">{{ t(`bagua.directions.${cell.direction}`) }}</span>
-            </template>
+            <span class="trigram-symbol">{{ cell.symbol }}</span>
+            <span class="trigram-name">{{ t(`bagua.trigrams.${cell.trigram}`) }}</span>
+            <span class="trigram-direction">{{ t(`bagua.directions.${cell.direction}`) }}</span>
+            <span class="element-name">{{ t(`elements.${cell.element}`) }}</span>
+            <strong class="element-value">{{ result ? result.totals[cell.element] : '-' }}</strong>
           </article>
         </div>
 

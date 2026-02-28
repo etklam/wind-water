@@ -2,8 +2,8 @@
   <main class="page about-page">
     <header class="topbar panel">
       <div>
-        <p class="eyebrow">Project Intro</p>
-        <h1>關於納音五行專案</h1>
+        <p class="eyebrow">Usage Guide</p>
+        <h1>使用說明</h1>
       </div>
       <NuxtLink to="/" class="about-link">返回計算頁</NuxtLink>
     </header>
@@ -29,7 +29,7 @@
       <h2>如何使用本工具</h2>
       <p>1. 輸入出生日期、時間與時區。</p>
       <p>2. 選擇排盤模式（公曆直排或傳統規則）。</p>
-      <p>3. 點擊開始計算，查看九宮格五行分布與四柱結果。</p>
+      <p>3. 點擊開始計算，查看八卦五行盤與四柱結果。</p>
     </section>
 
     <section class="panel about-section">

@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { elementCount, getNayinByGanzhi } from '../app/utils/nayin.js'
 import { elementCompass, elementOrder } from '../app/utils/elements.js'
-import { nineGridElements } from '../app/utils/nine-grid.js'
+import { nineGridCells, nineGridElements } from '../app/utils/nine-grid.js'
 
 test('甲子 maps to 海中金 and metal', () => {
   const r = getNayinByGanzhi('甲子')
@@ -30,8 +30,14 @@ test('five elements map to expected compass directions', () => {
 
 test('nine-grid element mapping follows approved layout', () => {
   assert.equal(nineGridElements.north, 'water')
-  assert.equal(nineGridElements.west, 'wood')
+  assert.equal(nineGridElements.west, 'metal')
   assert.equal(nineGridElements.center, 'earth')
-  assert.equal(nineGridElements.east, 'metal')
+  assert.equal(nineGridElements.east, 'wood')
   assert.equal(nineGridElements.south, 'fire')
+})
+
+test('bagua layout provides all eight trigrams', () => {
+  assert.equal(nineGridCells.length, 8)
+  const trigrams = new Set(nineGridCells.map((cell) => cell.trigram))
+  assert.deepEqual(trigrams, new Set(['qian', 'dui', 'li', 'zhen', 'xun', 'kan', 'gen', 'kun']))
 })

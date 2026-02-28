@@ -1,19 +1,18 @@
 export const nineGridElements = {
   north: 'water',
-  west: 'wood',
+  west: 'metal',
   center: 'earth',
-  east: 'metal',
+  east: 'wood',
   south: 'fire'
 }
 
 export const nineGridCells = [
-  { slot: 'northwest', kind: 'trigram', trigram: 'qian', symbol: '☰', direction: 'northwest' },
-  { slot: 'north', kind: 'element', element: nineGridElements.north, direction: 'north' },
-  { slot: 'northeast', kind: 'trigram', trigram: 'gen', symbol: '☶', direction: 'northeast' },
-  { slot: 'west', kind: 'element', element: nineGridElements.west, direction: 'east' },
-  { slot: 'center', kind: 'center', element: nineGridElements.center, direction: 'center' },
-  { slot: 'east', kind: 'element', element: nineGridElements.east, direction: 'west' },
-  { slot: 'southwest', kind: 'trigram', trigram: 'kun', symbol: '☷', direction: 'southwest' },
-  { slot: 'south', kind: 'element', element: nineGridElements.south, direction: 'south' },
-  { slot: 'southeast', kind: 'trigram', trigram: 'xun', symbol: '☴', direction: 'southeast' }
+  { slot: 'south', trigram: 'li', symbol: '☲', direction: 'south', element: 'fire' },
+  { slot: 'southwest', trigram: 'kun', symbol: '☷', direction: 'southwest', element: 'earth' },
+  { slot: 'west', trigram: 'dui', symbol: '☱', direction: 'west', element: 'metal' },
+  { slot: 'northwest', trigram: 'qian', symbol: '☰', direction: 'northwest', element: 'metal' },
+  { slot: 'north', trigram: 'kan', symbol: '☵', direction: 'north', element: 'water' },
+  { slot: 'northeast', trigram: 'gen', symbol: '☶', direction: 'northeast', element: 'earth' },
+  { slot: 'east', trigram: 'zhen', symbol: '☳', direction: 'east', element: 'wood' },
+  { slot: 'southeast', trigram: 'xun', symbol: '☴', direction: 'southeast', element: 'wood' }
 ]
