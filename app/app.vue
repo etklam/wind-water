@@ -4,6 +4,7 @@ import { computeNayinResult } from './composables/useNayinCalculator.js'
 import { messages } from './i18n/messages.js'
 import { elementOrder } from './utils/elements.js'
 import { nineGridCells } from './utils/nine-grid.js'
+import { buildTimezoneOptions } from './utils/timezones.js'
 
 const locale = ref('zh-Hant')
 const birthDate = ref('')
@@ -21,6 +22,7 @@ const locales = [
 ]
 
 const text = computed(() => messages[locale.value])
+const timezoneOptions = computed(() => buildTimezoneOptions(timezone.value))
 
 const dominantElement = computed(() => {
   if (!result.value) {
@@ -145,7 +147,11 @@ onBeforeUnmount(() => {
 
         <label>
           <span>{{ t('form.timezone') }}</span>
-          <input v-model="timezone" type="text" placeholder="Asia/Taipei">
+          <select v-model="timezone">
+            <option v-for="item in timezoneOptions" :key="item.value" :value="item.value">
+              {{ item.label }}
+            </option>
+          </select>
         </label>
 
         <fieldset>

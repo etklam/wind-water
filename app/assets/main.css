@@ -135,7 +135,8 @@ legend {
 
 input[type='date'],
 input[type='time'],
-input[type='text'] {
+input[type='text'],
+select {
   width: 100%;
   border: 1px solid rgba(200, 169, 107, 0.35);
   border-radius: 11px;
@@ -143,6 +144,10 @@ input[type='text'] {
   color: var(--ink);
   padding: 0.62rem;
   font-size: 1rem;
+}
+
+select {
+  appearance: none;
 }
 
 input:disabled {
