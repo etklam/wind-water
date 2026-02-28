@@ -88,6 +88,12 @@ h1 {
   gap: 0.45rem;
 }
 
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
 .lang-btn,
 .submit,
 .grid-cell {
@@ -107,6 +113,21 @@ h1 {
   border-color: var(--gold-strong);
   background: linear-gradient(130deg, rgba(200, 169, 107, 0.3), rgba(58, 166, 160, 0.3));
   color: #fff8e8;
+}
+
+.about-link {
+  border: 1px solid rgba(200, 169, 107, 0.45);
+  background: rgba(11, 17, 24, 0.85);
+  color: #eadfbf;
+  border-radius: 999px;
+  padding: 0.45rem 0.85rem;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.about-link:hover {
+  border-color: var(--cyan);
+  box-shadow: 0 0 12px rgba(58, 166, 160, 0.28);
 }
 
 .content-grid {
@@ -386,6 +407,26 @@ fieldset {
   font-size: 0.92rem;
 }
 
+.about-page {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.about-section {
+  padding: 1rem;
+}
+
+.about-section h2 {
+  margin-top: 0;
+  color: var(--gold-strong);
+}
+
+.about-section p {
+  margin: 0.45rem 0;
+  color: #e0dfda;
+  line-height: 1.6;
+}
+
 :focus-visible {
   outline: 2px solid var(--cyan);
   outline-offset: 2px;
@@ -429,6 +470,11 @@ fieldset {
   .topbar {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .top-actions {
+    width: 100%;
+    flex-wrap: wrap;
   }
 
   .grid-cell {
