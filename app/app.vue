@@ -19,7 +19,16 @@ const locales = [
   { code: 'zh-Hans', label: '简中' }
 ]
 
-const baguaRing = ['乾', '兌', '離', '震', '巽', '坎', '艮', '坤']
+const baguaRing = [
+  { id: 'qian', symbol: '☰', direction: 'northwest' },
+  { id: 'dui', symbol: '☱', direction: 'west' },
+  { id: 'li', symbol: '☲', direction: 'south' },
+  { id: 'zhen', symbol: '☳', direction: 'east' },
+  { id: 'xun', symbol: '☴', direction: 'southeast' },
+  { id: 'kan', symbol: '☵', direction: 'north' },
+  { id: 'gen', symbol: '☶', direction: 'northeast' },
+  { id: 'kun', symbol: '☷', direction: 'southwest' }
+]
 
 const text = computed(() => messages[locale.value])
 
@@ -157,7 +166,11 @@ onBeforeUnmount(() => {
 
         <div :class="['bagua-stage', { 'is-fresh': stageFresh, 'has-result': !!result }]">
           <ul class="bagua-ring" aria-hidden="true">
-            <li v-for="glyph in baguaRing" :key="glyph">{{ glyph }}</li>
+            <li v-for="item in baguaRing" :key="item.id">
+              <span class="trigram-symbol">{{ item.symbol }}</span>
+              <span class="trigram-name">{{ t(`bagua.trigrams.${item.id}`) }}</span>
+              <span class="trigram-direction">{{ t(`bagua.directions.${item.direction}`) }}</span>
+            </li>
           </ul>
 
           <div class="taiji-center">

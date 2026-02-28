@@ -21,7 +21,27 @@ export const messages = {
     bagua: {
       title: '八卦五行盤',
       center: '太極中樞',
-      highlight: '旺行'
+      highlight: '旺行',
+      trigrams: {
+        qian: '乾',
+        dui: '兌',
+        li: '離',
+        zhen: '震',
+        xun: '巽',
+        kan: '坎',
+        gen: '艮',
+        kun: '坤'
+      },
+      directions: {
+        north: '北',
+        northeast: '東北',
+        east: '東',
+        southeast: '東南',
+        south: '南',
+        southwest: '西南',
+        west: '西',
+        northwest: '西北'
+      }
     },
     elements: { wood: '木', fire: '火', earth: '土', metal: '金', water: '水' },
     errors: { requiredDate: '請輸入日期', requiredTimezone: '請選擇時區' },
@@ -49,7 +69,27 @@ export const messages = {
     bagua: {
       title: '八卦五行盘',
       center: '太极中枢',
-      highlight: '旺行'
+      highlight: '旺行',
+      trigrams: {
+        qian: '乾',
+        dui: '兑',
+        li: '离',
+        zhen: '震',
+        xun: '巽',
+        kan: '坎',
+        gen: '艮',
+        kun: '坤'
+      },
+      directions: {
+        north: '北',
+        northeast: '东北',
+        east: '东',
+        southeast: '东南',
+        south: '南',
+        southwest: '西南',
+        west: '西',
+        northwest: '西北'
+      }
     },
     elements: { wood: '木', fire: '火', earth: '土', metal: '金', water: '水' },
     errors: { requiredDate: '请输入日期', requiredTimezone: '请选择时区' },

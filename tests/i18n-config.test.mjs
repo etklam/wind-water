@@ -16,5 +16,9 @@ test('bagua UI translation keys exist in all locales', () => {
     assert.equal(typeof messages[locale].bagua.title, 'string')
     assert.equal(typeof messages[locale].bagua.center, 'string')
     assert.equal(typeof messages[locale].bagua.highlight, 'string')
+    assert.equal(typeof messages[locale].bagua.trigrams.qian, 'string')
+    assert.equal(typeof messages[locale].bagua.trigrams.kun, 'string')
+    assert.equal(typeof messages[locale].bagua.directions.north, 'string')
+    assert.equal(typeof messages[locale].bagua.directions.southwest, 'string')
   }
 })

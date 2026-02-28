@@ -259,12 +259,16 @@ fieldset {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 2rem;
+  width: 3.4rem;
   text-align: center;
   color: rgba(200, 169, 107, 0.86);
   font-family: 'Noto Serif TC', serif;
-  font-size: 1.1rem;
+  font-size: 1rem;
   transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.04rem;
 }
 
 .bagua-ring li:nth-child(1) { transform: translate(-50%, -50%) rotate(0deg) translateY(-220px) rotate(0deg); }
@@ -275,6 +279,24 @@ fieldset {
 .bagua-ring li:nth-child(6) { transform: translate(-50%, -50%) rotate(225deg) translateY(-220px) rotate(-225deg); }
 .bagua-ring li:nth-child(7) { transform: translate(-50%, -50%) rotate(270deg) translateY(-220px) rotate(-270deg); }
 .bagua-ring li:nth-child(8) { transform: translate(-50%, -50%) rotate(315deg) translateY(-220px) rotate(-315deg); }
+
+.trigram-symbol {
+  font-size: 1.05rem;
+  color: #efe1bf;
+  line-height: 1;
+}
+
+.trigram-name {
+  font-size: 0.87rem;
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+
+.trigram-direction {
+  font-size: 0.67rem;
+  color: rgba(177, 176, 169, 0.92);
+  line-height: 1;
+}
 
 .taiji-center {
   position: absolute;
@@ -469,9 +491,13 @@ fieldset {
     width: min(100%, 380px);
   }
 
-  .bagua-ring li {
-    font-size: 0.95rem;
-  }
+  .bagua-ring li { width: 3rem; }
+
+  .trigram-symbol { font-size: 0.92rem; }
+
+  .trigram-name { font-size: 0.78rem; }
+
+  .trigram-direction { font-size: 0.61rem; }
 
   .bagua-ring li:nth-child(1) { transform: translate(-50%, -50%) rotate(0deg) translateY(-152px) rotate(0deg); }
   .bagua-ring li:nth-child(2) { transform: translate(-50%, -50%) rotate(45deg) translateY(-152px) rotate(-45deg); }
