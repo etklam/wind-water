@@ -18,6 +18,11 @@ export const messages = {
       totals: '五行統計',
       rule: '規則'
     },
+    bagua: {
+      title: '八卦五行盤',
+      center: '太極中樞',
+      highlight: '旺行'
+    },
     elements: { wood: '木', fire: '火', earth: '土', metal: '金', water: '水' },
     errors: { requiredDate: '請輸入日期', requiredTimezone: '請選擇時區' },
     rules: { 'local-midnight': '本地 00:00 換日', 'solar-term-and-zi-hour': '節氣換月、子初換日（23:00）' }
@@ -40,6 +45,11 @@ export const messages = {
       element: '五行',
       totals: '五行统计',
       rule: '规则'
+    },
+    bagua: {
+      title: '八卦五行盘',
+      center: '太极中枢',
+      highlight: '旺行'
     },
     elements: { wood: '木', fire: '火', earth: '土', metal: '金', water: '水' },
     errors: { requiredDate: '请输入日期', requiredTimezone: '请选择时区' },
