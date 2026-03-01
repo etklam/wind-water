@@ -5,13 +5,14 @@ import { buildFortuneRequestPayload } from '../utils/fortune-request.js'
 import { messages } from '../i18n/messages.js'
 import { elementOrder } from '../utils/elements.js'
 import { nineGridCells } from '../utils/nine-grid.js'
-import { buildTimezoneOptions } from '../utils/timezones.js'
+import { buildTimezoneOptions, resolveDefaultTimezone } from '../utils/timezones.js'
 import { renderMarkdown } from '../utils/markdown.js'
+import { getNayinGuideByName } from '../utils/nayin-guide.js'
 
 const locale = ref('zh-Hant')
 const birthDate = ref('')
 const birthTime = ref('12:00')
-const timezone = ref(Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Taipei')
+const timezone = ref(resolveDefaultTimezone())
 const mode = ref('gregorian')
 const unknownHour = ref(true)
 const error = ref('')
@@ -55,9 +56,7 @@ const dominantElement = computed(() => {
     return result.value.totals[key] > result.value.totals[winner] ? key : winner
   }, null)
 })
-const showChartPrivacyWarning = computed(() => (
-  Boolean(birthDate.value) && Boolean(birthTime.value) && !unknownHour.value
-))
+const showChartPrivacyWarning = computed(() => (!unknownHour.value))
 const fortuneHtml = computed(() => renderMarkdown(fortuneText.value))
 
 function t(path) {
@@ -214,6 +213,14 @@ function cellClass(cell) {
   ]
 }
 
+function nayinGuideHref(nayin) {
+  const item = getNayinGuideByName(nayin)
+  if (!item) {
+    return '/nayin-guide'
+  }
+  return `/nayin-guide#${item.id}`
+}
+
 onBeforeUnmount(() => {
   if (freshTimer) {
     clearTimeout(freshTimer)
@@ -233,6 +240,7 @@ onBeforeUnmount(() => {
       </div>
       <div class="top-actions">
         <NuxtLink to="/about" class="about-link">使用說明</NuxtLink>
+        <NuxtLink to="/nayin-guide" class="about-link">納音五行說明</NuxtLink>
         <div class="lang-switch" role="group" aria-label="language switcher">
         <button
           v-for="item in locales"
@@ -408,7 +416,16 @@ onBeforeUnmount(() => {
           <article v-for="k in ['year', 'month', 'day', 'hour']" :key="k" class="pillar-card">
             <h3>{{ t(`result.pillars.${k}`) }}</h3>
             <p>{{ t('result.ganzhi') }}: {{ result.pillars[k].ganzhi || '-' }}</p>
-            <p>{{ t('result.nayin') }}: {{ result.pillars[k].nayin || '-' }}</p>
+            <p>
+              {{ t('result.nayin') }}: {{ result.pillars[k].nayin || '-' }}
+              <NuxtLink
+                v-if="result.pillars[k].nayin && result.pillars[k].nayin !== '-'"
+                class="pillar-guide-link"
+                :to="nayinGuideHref(result.pillars[k].nayin)"
+              >
+                查看說明
+              </NuxtLink>
+            </p>
             <p>{{ t('result.element') }}: {{ result.pillars[k].element ? t(`elements.${result.pillars[k].element}`) : '-' }}</p>
           </article>
         </div>

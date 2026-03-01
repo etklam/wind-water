@@ -80,6 +80,17 @@ function toLocaleLabel(item, locale) {
   }
 }
 
+export function resolveDefaultTimezone(input = {}) {
+  const detectedTimezone = input.detectedTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone
+  const offsetMinutes = Number.isFinite(input.offsetMinutes) ? input.offsetMinutes : new Date().getTimezoneOffset()
+
+  if (offsetMinutes === -480) {
+    return 'Asia/Hong_Kong'
+  }
+
+  return detectedTimezone || 'Asia/Taipei'
+}
+
 export function buildTimezoneOptions(userTimezone, locale = 'zh-Hant') {
   const localizedOptions = COMMON_TIMEZONES.map((item) => toLocaleLabel(item, locale))
   if (!userTimezone) {
