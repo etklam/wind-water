@@ -4,6 +4,7 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   css: ['~/assets/main.css'],
   runtimeConfig: {
+    databaseUrl: process.env.DATABASE_URL || '',
     openaiApiKey: process.env.OPENAI_API_KEY,
     openaiBaseUrl: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
     openaiModel: process.env.OPENAI_MODEL || 'gpt-4.1-mini',

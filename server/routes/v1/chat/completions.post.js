@@ -45,12 +45,14 @@ export default defineEventHandler(async (event) => {
   }
 
   const config = useRuntimeConfig(event)
+  const databaseUrl = process.env.DATABASE_URL || config.databaseUrl || ''
   const repository = createFortuneRepository({
-    host: config.mysqlHost,
-    port: config.mysqlPort,
-    user: config.mysqlUser,
-    password: config.mysqlPassword,
-    database: config.mysqlDatabase
+    databaseUrl,
+    host: process.env.MYSQL_HOST || config.mysqlHost,
+    port: Number(process.env.MYSQL_PORT || config.mysqlPort),
+    user: process.env.MYSQL_USER || config.mysqlUser,
+    password: process.env.MYSQL_PASSWORD || config.mysqlPassword,
+    database: process.env.MYSQL_DATABASE || config.mysqlDatabase
   })
 
   try {

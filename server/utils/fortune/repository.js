@@ -2,14 +2,33 @@ import mysql from 'mysql2/promise'
 
 let pool
 
+export function parseDatabaseUrl(databaseUrl) {
+  const url = new URL(String(databaseUrl || ''))
+  if (!/^mysql:$/i.test(url.protocol)) {
+    throw new Error('Unsupported DATABASE_URL protocol. Expected mysql://')
+  }
+
+  return {
+    host: url.hostname,
+    port: Number(url.port || 3306),
+    user: decodeURIComponent(url.username || ''),
+    password: decodeURIComponent(url.password || ''),
+    database: decodeURIComponent((url.pathname || '').replace(/^\/+/, ''))
+  }
+}
+
 function getPool(config) {
   if (!pool) {
-    pool = mysql.createPool({
+    const options = config.databaseUrl ? parseDatabaseUrl(config.databaseUrl) : {
       host: config.host,
       port: Number(config.port || 3306),
       user: config.user,
       password: config.password,
-      database: config.database,
+      database: config.database
+    }
+
+    pool = mysql.createPool({
+      ...options,
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0
