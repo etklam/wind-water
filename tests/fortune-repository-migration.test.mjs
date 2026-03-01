@@ -29,11 +29,15 @@ test('ensureFortuneCacheSchema uses compatibility-safe alters', async () => {
     true
   )
   assert.equal(
+    executed.some((x) => x.sql.includes('ALTER TABLE fortune_cache ADD COLUMN `mbti`')),
+    true
+  )
+  assert.equal(
     executed.some((x) => x.sql.includes('ALTER TABLE fortune_cache ADD COLUMN `focus_area`')),
     true
   )
   assert.equal(
-    executed.some((x) => x.sql.includes('ALTER TABLE fortune_cache ADD UNIQUE INDEX ux_fortune_cache_scope')),
+    executed.some((x) => x.sql.includes('ux_fortune_cache_scope (cache_key, mode, year, gender, mbti, focus_area)')),
     true
   )
   assert.equal(

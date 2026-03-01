@@ -3,6 +3,7 @@ import { createOpenAICompletionWithFallback, normalizeModelList } from '../../..
 import { runFortuneCompletion } from '../../../utils/fortune/service.js'
 import { buildChatCompletionResponse, buildOpenAIError } from '../../../utils/fortune/openai-shape.js'
 import { createServerFortuneLogger } from '../../../utils/fortune/debug-log.js'
+import { randomUUID } from 'node:crypto'
 
 function normalizeBirthInput(metadata = {}) {
   if (!metadata.birth) {
@@ -25,9 +26,13 @@ function normalizeBirthInput(metadata = {}) {
 export default defineEventHandler(async (event) => {
   const log = createServerFortuneLogger({ scope: 'route.chat-completions' })
   const startedAt = Date.now()
+  const incomingRequestId = String(event.node.req.headers['x-request-id'] || '').trim()
+  const requestId = incomingRequestId || randomUUID()
+  setResponseHeader(event, 'x-request-id', requestId)
+
   const body = await readBody(event)
   if (!body || typeof body !== 'object') {
-    log('request.invalid-body', { kind: typeof body })
+    log('request.invalid-body', { requestId, kind: typeof body })
     throw buildOpenAIError({ message: 'Request body is required.' })
   }
 
@@ -35,22 +40,25 @@ export default defineEventHandler(async (event) => {
   const mode = metadata.mode === 'life' ? 'life' : 'year'
   const year = Number(metadata.year || new Date().getFullYear())
   const gender = metadata.gender || ''
+  const mbti = metadata.mbti || ''
   const focusAreas = Array.isArray(metadata.focus_areas) ? metadata.focus_areas : []
   const birthInput = normalizeBirthInput(metadata)
   const fiveElements = metadata.five_elements || null
   const userMessages = Array.isArray(body.messages) ? body.messages : []
   log('request.received', {
+    requestId,
     mode,
     year,
     hasBirth: Boolean(birthInput),
     hasFiveElements: Boolean(fiveElements),
     hasGender: Boolean(gender),
+    hasMbti: Boolean(mbti),
     focusAreaCount: focusAreas.length,
     messageCount: userMessages.length
   })
 
   if (!birthInput && !fiveElements) {
-    log('request.invalid-profile-input', { mode, year })
+    log('request.invalid-profile-input', { requestId, mode, year })
     throw buildOpenAIError({
       message: 'Provide either metadata.birth or metadata.five_elements.',
       code: 'missing_profile_input',
@@ -65,7 +73,7 @@ export default defineEventHandler(async (event) => {
   const openaiFallbackModels = process.env.OPENAI_FALLBACK_MODELS
     || process.env.NUXT_OPENAI_FALLBACK_MODELS
     || config.openaiFallbackModels
-  const openaiTimeoutMs = Number(process.env.OPENAI_TIMEOUT_MS || config.openaiTimeoutMs || 45000)
+  const openaiTimeoutMs = Number(process.env.OPENAI_TIMEOUT_MS || config.openaiTimeoutMs || 15000)
   const databaseUrl = process.env.DATABASE_URL || config.databaseUrl || ''
   const repository = createFortuneRepository({
     databaseUrl,
@@ -79,6 +87,7 @@ export default defineEventHandler(async (event) => {
   try {
     const models = normalizeModelList(openaiModel || 'gpt-4.1-mini', openaiFallbackModels)
     log('provider.models', {
+      requestId,
       modelCount: models.length,
       firstModel: models[0] || '',
       timeoutMs: openaiTimeoutMs
@@ -88,10 +97,12 @@ export default defineEventHandler(async (event) => {
       mode,
       year,
       gender,
+      mbti,
       focusAreas,
       birthInput,
       fiveElements,
       userMessages,
+      requestId,
       repository,
       provider: {
         createCompletion: ({ messages }) => createOpenAICompletionWithFallback({
@@ -99,11 +110,18 @@ export default defineEventHandler(async (event) => {
           baseUrl: openaiBaseUrl,
           models,
           timeoutMs: openaiTimeoutMs,
-          messages
+          messages,
+          onAttempt: (attempt) => {
+            log('provider.attempt', {
+              requestId,
+              ...attempt
+            })
+          }
         })
       }
     })
     log('request.completed', {
+      requestId,
       source: result.source,
       model: result.model,
       elapsedMs: Date.now() - startedAt
@@ -117,6 +135,7 @@ export default defineEventHandler(async (event) => {
   } catch (error) {
     const statusCode = Number.isInteger(error?.statusCode) ? error.statusCode : 500
     log('request.failed', {
+      requestId,
       message: error?.message || 'unknown error',
       statusCode,
       elapsedMs: Date.now() - startedAt

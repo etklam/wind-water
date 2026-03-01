@@ -1,4 +1,10 @@
 const allowedFocusAreas = new Set(['overall', 'career', 'love', 'health'])
+const allowedMbtiTypes = new Set([
+  'INTJ', 'INTP', 'ENTJ', 'ENTP',
+  'INFJ', 'INFP', 'ENFJ', 'ENFP',
+  'ISTJ', 'ISFJ', 'ESTJ', 'ESFJ',
+  'ISTP', 'ISFP', 'ESTP', 'ESFP'
+])
 const focusAreaLabels = {
   overall: '綜合',
   career: '事業',
@@ -6,11 +12,20 @@ const focusAreaLabels = {
   health: '身體'
 }
 
-export function buildFortuneRequestPayload({ totals, gender, fortuneType, focusAreas = [] }) {
+function normalizeMbti(mbti) {
+  const value = String(mbti || '').trim().toUpperCase()
+  return allowedMbtiTypes.has(value) ? value : ''
+}
+
+export function buildFortuneRequestPayload({ totals, gender, mbti, fortuneType, focusAreas = [] }) {
   const mode = fortuneType === 'life' ? 'life' : 'year'
   const metadata = {
     mode,
     gender: gender || ''
+  }
+  const normalizedMbti = normalizeMbti(mbti)
+  if (normalizedMbti) {
+    metadata.mbti = normalizedMbti
   }
 
   if (mode === 'year') {

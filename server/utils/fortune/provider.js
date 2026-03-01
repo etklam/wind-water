@@ -6,8 +6,19 @@ function normalizeBaseUrl(baseUrl) {
   return trimmed.replace(/\/+$/, '')
 }
 
+const DEFAULT_OPENAI_TIMEOUT_MS = 15000
+const MAX_OPENAI_TIMEOUT_MS = 30000
+
 export function buildChatCompletionsUrl(baseUrl) {
   return `${normalizeBaseUrl(baseUrl)}/chat/completions`
+}
+
+export function normalizeTimeoutMs(timeoutMs) {
+  const parsed = Number(timeoutMs)
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return DEFAULT_OPENAI_TIMEOUT_MS
+  }
+  return Math.min(Math.floor(parsed), MAX_OPENAI_TIMEOUT_MS)
 }
 
 export async function createOpenAICompletion({
@@ -16,15 +27,16 @@ export async function createOpenAICompletion({
   model,
   messages,
   temperature = 0.7,
-  timeoutMs = 45000,
+  timeoutMs = DEFAULT_OPENAI_TIMEOUT_MS,
   fetchImpl = fetch
 }) {
   if (!apiKey) {
     throw new Error('OPENAI_API_KEY is missing')
   }
 
+  const resolvedTimeoutMs = normalizeTimeoutMs(timeoutMs)
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), Number(timeoutMs || 45000))
+  const timer = setTimeout(() => controller.abort(), resolvedTimeoutMs)
   let response
   try {
     response = await fetchImpl(buildChatCompletionsUrl(baseUrl), {
@@ -42,7 +54,7 @@ export async function createOpenAICompletion({
     })
   } catch (error) {
     if (error?.name === 'AbortError') {
-      const timeoutError = new Error(`OpenAI request timeout after ${Number(timeoutMs || 45000)}ms`)
+      const timeoutError = new Error(`OpenAI request timeout after ${resolvedTimeoutMs}ms`)
       timeoutError.statusCode = 504
       throw timeoutError
     }
@@ -103,13 +115,15 @@ export async function createOpenAICompletionWithFallback({
   models,
   messages,
   temperature = 0.7,
-  timeoutMs = 45000,
-  fetchImpl = fetch
+  timeoutMs = DEFAULT_OPENAI_TIMEOUT_MS,
+  fetchImpl = fetch,
+  onAttempt
 }) {
   let lastError
   for (const model of models) {
+    const startedAt = Date.now()
     try {
-      return await createOpenAICompletion({
+      const result = await createOpenAICompletion({
         apiKey,
         baseUrl,
         model,
@@ -118,8 +132,26 @@ export async function createOpenAICompletionWithFallback({
         timeoutMs,
         fetchImpl
       })
+      if (typeof onAttempt === 'function') {
+        onAttempt({
+          model,
+          ok: true,
+          statusCode: 200,
+          elapsedMs: Date.now() - startedAt
+        })
+      }
+      return result
     } catch (error) {
       lastError = error
+      if (typeof onAttempt === 'function') {
+        onAttempt({
+          model,
+          ok: false,
+          statusCode: Number.isInteger(error?.statusCode) ? error.statusCode : null,
+          message: error?.message || 'unknown error',
+          elapsedMs: Date.now() - startedAt
+        })
+      }
       if (error?.statusCode !== 429) {
         throw error
       }

@@ -6,6 +6,7 @@ test('buildFortuneRequestPayload builds life mode payload', () => {
   const payload = buildFortuneRequestPayload({
     totals: { wood: 1, fire: 2, earth: 0, metal: 1, water: 0 },
     gender: 'male',
+    mbti: 'intj',
     fortuneType: 'life',
     focusAreas: ['overall', 'career']
   })
@@ -13,6 +14,7 @@ test('buildFortuneRequestPayload builds life mode payload', () => {
   assert.equal(payload.metadata.mode, 'life')
   assert.equal(payload.metadata.year, undefined)
   assert.equal(payload.metadata.gender, 'male')
+  assert.equal(payload.metadata.mbti, 'INTJ')
   assert.equal(payload.metadata.five_elements.fire, 2)
   assert.deepEqual(payload.metadata.focus_areas, ['overall', 'career'])
   assert.match(payload.messages[0].content, /綜合、事業/)
@@ -34,4 +36,16 @@ test('buildFortuneRequestPayload builds year mode payload with fixed 2026', () =
   })
   assert.deepEqual(payload.metadata.focus_areas, ['overall', 'love', 'health'])
   assert.match(payload.messages[0].content, /綜合、愛情、身體/)
+})
+
+test('buildFortuneRequestPayload ignores invalid mbti value', () => {
+  const payload = buildFortuneRequestPayload({
+    totals: { wood: 1, fire: 0, earth: 1, metal: 0, water: 1 },
+    gender: 'female',
+    mbti: 'abcd',
+    fortuneType: 'year',
+    focusAreas: ['career']
+  })
+
+  assert.equal(payload.metadata.mbti, undefined)
 })

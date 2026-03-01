@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS fortune_cache (
   mode VARCHAR(16) NOT NULL,
   year INT NULL,
   gender VARCHAR(16) NOT NULL DEFAULT '',
+  mbti VARCHAR(16) NOT NULL DEFAULT '',
   focus_area VARCHAR(128) NOT NULL DEFAULT '',
   request_payload JSON NULL,
   response_text LONGTEXT NOT NULL,
@@ -11,5 +12,5 @@ CREATE TABLE IF NOT EXISTS fortune_cache (
   created_at DATETIME NOT NULL,
   updated_at DATETIME NOT NULL,
   PRIMARY KEY (id),
-  UNIQUE KEY ux_fortune_cache_scope (cache_key, mode, year, gender, focus_area)
+  UNIQUE KEY ux_fortune_cache_scope (cache_key, mode, year, gender, mbti, focus_area)
 );

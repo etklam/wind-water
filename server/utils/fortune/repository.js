@@ -88,6 +88,7 @@ async function indexExists(db, database, table, indexName) {
 }
 
 export async function ensureFortuneCacheSchema(db, database) {
+  let mbtiAdded = false
   if (!(await columnExists(db, database, 'fortune_cache', 'year'))) {
     log('schema.alter.add-column', { column: 'year' })
     await db.execute('ALTER TABLE fortune_cache ADD COLUMN `year` INT NULL AFTER `mode`')
@@ -96,18 +97,27 @@ export async function ensureFortuneCacheSchema(db, database) {
     log('schema.alter.add-column', { column: 'gender' })
     await db.execute("ALTER TABLE fortune_cache ADD COLUMN `gender` VARCHAR(16) NOT NULL DEFAULT '' AFTER `mode`")
   }
+  if (!(await columnExists(db, database, 'fortune_cache', 'mbti'))) {
+    log('schema.alter.add-column', { column: 'mbti' })
+    await db.execute("ALTER TABLE fortune_cache ADD COLUMN `mbti` VARCHAR(16) NOT NULL DEFAULT '' AFTER `gender`")
+    mbtiAdded = true
+  }
   if (!(await columnExists(db, database, 'fortune_cache', 'focus_area'))) {
     log('schema.alter.add-column', { column: 'focus_area' })
-    await db.execute("ALTER TABLE fortune_cache ADD COLUMN `focus_area` VARCHAR(128) NOT NULL DEFAULT '' AFTER `gender`")
+    await db.execute("ALTER TABLE fortune_cache ADD COLUMN `focus_area` VARCHAR(128) NOT NULL DEFAULT '' AFTER `mbti`")
   }
   if (await indexExists(db, database, 'fortune_cache', 'ux_fortune_cache_key')) {
     log('schema.alter.drop-index', { index: 'ux_fortune_cache_key' })
     await db.execute('ALTER TABLE fortune_cache DROP INDEX ux_fortune_cache_key')
   }
+  if (mbtiAdded && (await indexExists(db, database, 'fortune_cache', 'ux_fortune_cache_scope'))) {
+    log('schema.alter.drop-index', { index: 'ux_fortune_cache_scope' })
+    await db.execute('ALTER TABLE fortune_cache DROP INDEX ux_fortune_cache_scope')
+  }
   if (!(await indexExists(db, database, 'fortune_cache', 'ux_fortune_cache_scope'))) {
     log('schema.alter.add-index', { index: 'ux_fortune_cache_scope' })
     await db.execute(
-      'ALTER TABLE fortune_cache ADD UNIQUE INDEX ux_fortune_cache_scope (cache_key, mode, year, gender, focus_area)'
+      'ALTER TABLE fortune_cache ADD UNIQUE INDEX ux_fortune_cache_scope (cache_key, mode, year, gender, mbti, focus_area)'
     )
   }
 }
@@ -126,6 +136,7 @@ export function createFortuneRepository(config) {
           mode VARCHAR(16) NOT NULL,
           year INT NULL,
           gender VARCHAR(16) NOT NULL DEFAULT '',
+          mbti VARCHAR(16) NOT NULL DEFAULT '',
           focus_area VARCHAR(128) NOT NULL DEFAULT '',
           request_payload JSON NULL,
           response_text LONGTEXT NOT NULL,
@@ -133,7 +144,7 @@ export function createFortuneRepository(config) {
           created_at DATETIME NOT NULL,
           updated_at DATETIME NOT NULL,
           PRIMARY KEY (id),
-          UNIQUE KEY ux_fortune_cache_scope (cache_key, mode, year, gender, focus_area)
+          UNIQUE KEY ux_fortune_cache_scope (cache_key, mode, year, gender, mbti, focus_area)
         )`
       )
     }
@@ -145,16 +156,19 @@ export function createFortuneRepository(config) {
 
   return {
     async findByCacheKey(cacheKey, scope = {}) {
+      const startedAt = Date.now()
       await ensureTable()
       const mode = scope.mode || 'year'
       const year = Number.isFinite(scope.year) ? Number(scope.year) : null
       const gender = scope.gender || ''
+      const mbti = scope.mbti || ''
       const focusArea = scope.focusArea || ''
       log('cache.find.start', {
         cacheKey,
         mode,
         year,
         hasGender: Boolean(gender),
+        hasMbti: Boolean(mbti),
         hasFocusArea: Boolean(focusArea)
       })
       const [rows] = await db.execute(
@@ -163,19 +177,20 @@ export function createFortuneRepository(config) {
          WHERE cache_key = ?
            AND mode = ?
            AND gender = ?
+           AND mbti = ?
            AND focus_area = ?
            AND ((? IS NULL AND year IS NULL) OR year = ?)
          LIMIT 1`,
-        [cacheKey, mode, gender, focusArea, year, year]
+        [cacheKey, mode, gender, mbti, focusArea, year, year]
       )
 
       if (!Array.isArray(rows) || rows.length === 0) {
-        log('cache.find.miss', { cacheKey })
+        log('cache.find.miss', { cacheKey, elapsedMs: Date.now() - startedAt })
         return null
       }
 
       const row = rows[0]
-      log('cache.find.hit', { cacheKey, model: row.model || '' })
+      log('cache.find.hit', { cacheKey, model: row.model || '', elapsedMs: Date.now() - startedAt })
       return {
         cacheKey: row.cache_key,
         mode: row.mode,
@@ -185,21 +200,24 @@ export function createFortuneRepository(config) {
     },
 
     async saveCache(payload) {
+      const startedAt = Date.now()
       await ensureTable()
       log('cache.save.start', {
         cacheKey: payload.cacheKey,
         mode: payload.mode,
         year: Number.isFinite(payload.year) ? Number(payload.year) : null,
         hasGender: Boolean(payload.gender),
+        hasMbti: Boolean(payload.mbti),
         hasFocusArea: Boolean(payload.focusArea)
       })
       await db.execute(
         `INSERT INTO fortune_cache
-        (cache_key, mode, year, gender, focus_area, request_payload, response_text, model, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        (cache_key, mode, year, gender, mbti, focus_area, request_payload, response_text, model, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
         ON DUPLICATE KEY UPDATE
           year = VALUES(year),
           gender = VALUES(gender),
+          mbti = VALUES(mbti),
           focus_area = VALUES(focus_area),
           request_payload = VALUES(request_payload),
           response_text = VALUES(response_text),
@@ -210,13 +228,14 @@ export function createFortuneRepository(config) {
           payload.mode,
           Number.isFinite(payload.year) ? Number(payload.year) : null,
           payload.gender || '',
+          payload.mbti || '',
           payload.focusArea || '',
           JSON.stringify(payload.requestPayload || {}),
           payload.responseText,
           payload.model
         ]
       )
-      log('cache.save.done', { cacheKey: payload.cacheKey })
+      log('cache.save.done', { cacheKey: payload.cacheKey, elapsedMs: Date.now() - startedAt })
     }
   }
 }

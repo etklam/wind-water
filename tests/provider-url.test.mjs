@@ -4,7 +4,8 @@ import {
   buildChatCompletionsUrl,
   createOpenAICompletionWithFallback,
   createOpenAICompletion,
-  normalizeModelList
+  normalizeModelList,
+  normalizeTimeoutMs
 } from '../server/utils/fortune/provider.js'
 
 test('buildChatCompletionsUrl uses provided third-party base url', () => {
@@ -32,6 +33,15 @@ test('normalizeModelList keeps primary and appends unique fallbacks', () => {
 test('normalizeModelList returns primary only when fallback is empty', () => {
   const models = normalizeModelList('qwen/main', '')
   assert.deepEqual(models, ['qwen/main'])
+})
+
+test('normalizeTimeoutMs falls back for invalid values and clamps large values', () => {
+  assert.equal(normalizeTimeoutMs(undefined), 15000)
+  assert.equal(normalizeTimeoutMs('abc'), 15000)
+  assert.equal(normalizeTimeoutMs(0), 15000)
+  assert.equal(normalizeTimeoutMs(-1), 15000)
+  assert.equal(normalizeTimeoutMs(12000), 12000)
+  assert.equal(normalizeTimeoutMs(60000), 30000)
 })
 
 test('createOpenAICompletionWithFallback retries next model on 429', async () => {
@@ -95,6 +105,52 @@ test('createOpenAICompletionWithFallback does not retry when only primary model 
   )
 
   assert.deepEqual(calls, ['qwen/main'])
+})
+
+test('createOpenAICompletionWithFallback reports per-model attempts', async () => {
+  const attempts = []
+  const fetchImpl = async (_url, init) => {
+    const payload = JSON.parse(init.body)
+    if (payload.model === 'qwen/main') {
+      return {
+        ok: false,
+        status: 429,
+        text: async () => '{"error":"rate_limited"}'
+      }
+    }
+    return {
+      ok: true,
+      json: async () => ({
+        model: payload.model,
+        choices: [{ message: { content: 'ok' } }],
+        usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 }
+      })
+    }
+  }
+
+  await createOpenAICompletionWithFallback({
+    apiKey: 'test-key',
+    baseUrl: 'https://provider.example.com/v1',
+    models: ['qwen/main', 'qwen/fallback-1'],
+    messages: [{ role: 'user', content: 'hello' }],
+    fetchImpl,
+    onAttempt: (entry) => attempts.push(entry)
+  })
+
+  assert.equal(attempts.length, 2)
+  assert.deepEqual(
+    attempts.map((item) => ({
+      model: item.model,
+      statusCode: item.statusCode,
+      ok: item.ok
+    })),
+    [
+      { model: 'qwen/main', statusCode: 429, ok: false },
+      { model: 'qwen/fallback-1', statusCode: 200, ok: true }
+    ]
+  )
+  assert.match(String(attempts[0].elapsedMs), /^[0-9]+$/)
+  assert.match(String(attempts[1].elapsedMs), /^[0-9]+$/)
 })
 
 test('createOpenAICompletion times out when upstream hangs', async () => {

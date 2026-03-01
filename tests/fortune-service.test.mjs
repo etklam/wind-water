@@ -42,6 +42,7 @@ test('runFortuneCompletion returns cache hit without calling OpenAI', async () =
     mode: 'year',
     year: 2026,
     gender: 'male',
+    mbti: 'intj',
     focusAreas: ['career'],
     birthInput: { date: '1990-06-15', time: '12:00', timezone: 'Asia/Taipei' },
     repository,
@@ -56,6 +57,7 @@ test('runFortuneCompletion returns cache hit without calling OpenAI', async () =
     mode: 'year',
     year: 2026,
     gender: 'male',
+    mbti: 'INTJ',
     focusArea: 'career'
   })
 })
@@ -86,6 +88,7 @@ test('runFortuneCompletion calls OpenAI and persists on cache miss', async () =>
     mode: 'life',
     year: 2026,
     gender: 'female',
+    mbti: 'enfp',
     focusAreas: ['career', 'health'],
     birthInput: { date: '1990-06-15', time: '12:00', timezone: 'Asia/Taipei' },
     repository,
@@ -101,5 +104,6 @@ test('runFortuneCompletion calls OpenAI and persists on cache miss', async () =>
   assert.equal(persisted.mode, 'life')
   assert.equal(persisted.year, null)
   assert.equal(persisted.gender, 'female')
+  assert.equal(persisted.mbti, 'ENFP')
   assert.equal(persisted.focusArea, 'career,health')
 })

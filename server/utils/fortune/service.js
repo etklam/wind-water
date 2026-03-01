@@ -43,16 +43,28 @@ function normalizeFocusAreas(input) {
     .filter((item) => allowed.has(item))
 }
 
+function normalizeMbti(mbti) {
+  const allowed = new Set([
+    'INTJ', 'INTP', 'ENTJ', 'ENTP',
+    'INFJ', 'INFP', 'ENFJ', 'ENFP',
+    'ISTJ', 'ISFJ', 'ESTJ', 'ESFJ',
+    'ISTP', 'ISFP', 'ESTP', 'ESFP'
+  ])
+  const value = String(mbti || '').trim().toUpperCase()
+  return allowed.has(value) ? value : ''
+}
+
 export function buildFingerprintInput({ profile }) {
   return profile.totals
 }
 
-function normalizeScope({ mode, year, gender, focusAreas }) {
+function normalizeScope({ mode, year, gender, mbti, focusAreas }) {
   const normalizedMode = mode === 'life' ? 'life' : 'year'
   return {
     mode: normalizedMode,
     year: normalizedMode === 'year' ? Number(year || new Date().getFullYear()) : null,
     gender: normalizeGender(gender),
+    mbti: normalizeMbti(mbti),
     focusArea: normalizeFocusAreas(focusAreas).join(',')
   }
 }
@@ -61,20 +73,24 @@ export async function runFortuneCompletion({
   mode,
   year,
   gender,
+  mbti,
   focusAreas,
   birthInput,
   fiveElements,
   userMessages = [],
+  requestId = '',
   repository,
   provider
 }) {
   const log = createServerFortuneLogger({ scope: 'service.run-fortune' })
   const startedAt = Date.now()
-  const scope = normalizeScope({ mode, year, gender, focusAreas })
+  const scope = normalizeScope({ mode, year, gender, mbti, focusAreas })
   log('scope.normalized', {
+    requestId,
     mode: scope.mode,
     year: scope.year,
     hasGender: Boolean(scope.gender),
+    hasMbti: Boolean(scope.mbti),
     focusAreaCount: scope.focusArea ? scope.focusArea.split(',').length : 0
   })
 
@@ -82,19 +98,25 @@ export async function runFortuneCompletion({
   const normalizedTotals = normalizeFiveElements(fiveElements)
   if (normalizedTotals) {
     profile = { totals: normalizedTotals, source: 'provided-five-elements' }
-    log('profile.source', { source: profile.source })
+    log('profile.source', { requestId, source: profile.source })
   } else {
     profile = buildProfileFromBirth(birthInput)
-    log('profile.source', { source: 'birth-input', rule: profile.rule })
+    log('profile.source', { requestId, source: 'birth-input', rule: profile.rule })
   }
 
   const cacheInput = buildFingerprintInput({ profile })
 
   const cacheKey = buildFortuneCacheKey(cacheInput)
-  log('cache.lookup.start', { cacheKey })
+  const cacheStartedAt = Date.now()
+  log('cache.lookup.start', { requestId, cacheKey })
   const cached = await repository.findByCacheKey(cacheKey, scope)
   if (cached?.responseText) {
-    log('cache.lookup.hit', { cacheKey, model: cached.model || 'cached-model' })
+    log('cache.lookup.hit', {
+      requestId,
+      cacheKey,
+      model: cached.model || 'cached-model',
+      elapsedMs: Date.now() - cacheStartedAt
+    })
     return {
       source: 'cache',
       cacheKey,
@@ -104,17 +126,18 @@ export async function runFortuneCompletion({
       profile
     }
   }
-  log('cache.lookup.miss', { cacheKey })
+  log('cache.lookup.miss', { requestId, cacheKey, elapsedMs: Date.now() - cacheStartedAt })
 
   const promptMessages = buildFortunePrompt({
     mode: scope.mode,
     year: scope.year,
     profile,
     gender: scope.gender,
+    mbti: scope.mbti,
     focusAreas: scope.focusArea ? scope.focusArea.split(',') : [],
     userMessages
   })
-  log('prompt.built', { messageCount: promptMessages.length })
+  log('prompt.built', { requestId, messageCount: promptMessages.length })
 
   const providerStartedAt = Date.now()
   const fresh = await provider.createCompletion({
@@ -123,6 +146,7 @@ export async function runFortuneCompletion({
     messages: promptMessages
   })
   log('provider.completed', {
+    requestId,
     model: fresh.model,
     elapsedMs: Date.now() - providerStartedAt,
     hasText: Boolean(fresh.text)
@@ -137,14 +161,16 @@ export async function runFortuneCompletion({
       year: scope.year,
       profile,
       gender: scope.gender,
+      mbti: scope.mbti,
       focus_areas: scope.focusArea ? scope.focusArea.split(',') : []
     },
     responseText: fresh.text,
     model: fresh.model,
     gender: scope.gender,
+    mbti: scope.mbti,
     focusArea: scope.focusArea
   })
-  log('cache.saved', { cacheKey, mode: scope.mode, elapsedMs: Date.now() - startedAt })
+  log('cache.saved', { requestId, cacheKey, mode: scope.mode, elapsedMs: Date.now() - startedAt })
 
   return {
     source: 'openai',

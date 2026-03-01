@@ -39,3 +39,28 @@ test('buildFortunePrompt includes year template and selected year', () => {
   assert.match(text, /命格詩/)
   assert.match(text, /詩意白話註解/)
 })
+
+test('buildFortunePrompt includes mbti only when provided', () => {
+  const withMbti = buildFortunePrompt({
+    mode: 'year',
+    year: 2026,
+    profile: { totals: { wood: 1, fire: 1, earth: 1, metal: 1, water: 1 } },
+    gender: 'male',
+    mbti: 'INTJ',
+    focusAreas: ['career'],
+    userMessages: []
+  })
+  const withoutMbti = buildFortunePrompt({
+    mode: 'year',
+    year: 2026,
+    profile: { totals: { wood: 1, fire: 1, earth: 1, metal: 1, water: 1 } },
+    gender: 'male',
+    focusAreas: ['career'],
+    userMessages: []
+  })
+
+  const withText = withMbti.map((m) => m.content).join('\n')
+  const withoutText = withoutMbti.map((m) => m.content).join('\n')
+  assert.match(withText, /MBTI=INTJ/)
+  assert.equal(/MBTI=/.test(withoutText), false)
+})

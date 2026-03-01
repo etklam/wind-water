@@ -26,6 +26,7 @@ const error = ref('')
 const result = ref(null)
 const stageFresh = ref(false)
 const gender = ref('')
+const mbti = ref('')
 const fortuneType = ref('year')
 const fortuneLoading = ref(false)
 const fortuneError = ref('')
@@ -41,6 +42,12 @@ const debugLog = createClientFortuneLogger({
 const locales = [
   { code: 'zh-Hant', label: '繁中' },
   { code: 'zh-Hans', label: '简中' }
+]
+const mbtiOptions = [
+  'INTJ', 'INTP', 'ENTJ', 'ENTP',
+  'INFJ', 'INFP', 'ENFJ', 'ENFP',
+  'ISTJ', 'ISFJ', 'ESTJ', 'ESFJ',
+  'ISTP', 'ISFP', 'ESTP', 'ESFP'
 ]
 
 const text = computed(() => messages[locale.value])
@@ -78,11 +85,19 @@ function t(path) {
 let freshTimer = null
 let copyTimer = null
 const MIN_FORTUNE_WAIT_MS = 3000
+const FORTUNE_REQUEST_TIMEOUT_MS = 20000
 
 function wait(ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms)
   })
+}
+
+function createClientRequestId() {
+  if (globalThis?.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID()
+  }
+  return `req-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
 
 function onSubmit() {
@@ -131,9 +146,13 @@ const canFortune = computed(() => !!result.value && !fortuneLoading.value && Boo
 
 async function onFortuneSubmit() {
   const startedAt = Date.now()
+  const requestId = createClientRequestId()
+  let requestTimer = null
   debugLog('step2.submit.start', {
+    requestId,
     hasResult: Boolean(result.value),
     gender: gender.value,
+    mbti: mbti.value,
     fortuneType: fortuneType.value,
     focusArea: focusArea.value
   })
@@ -157,21 +176,32 @@ async function onFortuneSubmit() {
     const payload = buildFortuneRequestPayload({
       totals: result.value.totals,
       gender: gender.value,
+      mbti: mbti.value,
       fortuneType: fortuneType.value,
       focusAreas: [focusArea.value]
     })
     debugLog('step2.payload.built', {
+      requestId,
       mode: payload?.metadata?.mode || '',
       year: payload?.metadata?.year || null,
       hasGender: Boolean(payload?.metadata?.gender),
+      hasMbti: Boolean(payload?.metadata?.mbti),
       focusAreas: payload?.metadata?.focus_areas || []
     })
 
+    const controller = new AbortController()
+    requestTimer = setTimeout(() => controller.abort(), FORTUNE_REQUEST_TIMEOUT_MS)
+    debugLog('step2.api.request.start', {
+      requestId,
+      timeoutMs: FORTUNE_REQUEST_TIMEOUT_MS
+    })
     const response = await fetch('/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      signal: controller.signal
     })
+    const serverRequestId = response.headers.get('x-request-id') || requestId
 
     const contentType = response.headers.get('content-type') || ''
     const rawText = await response.text()
@@ -181,6 +211,7 @@ async function onFortuneSubmit() {
         data = rawText ? JSON.parse(rawText) : {}
       } catch (parseErr) {
         debugLog('step2.api.invalid-json', {
+          requestId: serverRequestId,
           status: response.status,
           contentType,
           parseError: parseErr?.message || 'unknown',
@@ -189,14 +220,16 @@ async function onFortuneSubmit() {
       }
     }
     debugLog('step2.api.response', {
+      requestId: serverRequestId,
       status: response.status,
       ok: response.ok,
-      contentType
+      contentType,
+      elapsedMs: Date.now() - startedAt
     })
     if (!response.ok) {
       const statusHint = `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`
       const message = data?.data?.error?.message || data?.message || statusHint
-      throw new Error(message)
+      throw new Error(`${message} (requestId: ${serverRequestId})`)
     }
 
     const elapsed = Date.now() - startedAt
@@ -207,9 +240,10 @@ async function onFortuneSubmit() {
     fortuneText.value = data?.choices?.[0]?.message?.content || ''
     if (!fortuneText.value) {
       fortuneError.value = t('fortune.emptyResult')
-      debugLog('step2.result.empty', { elapsedMs: Date.now() - startedAt })
+      debugLog('step2.result.empty', { requestId: serverRequestId, elapsedMs: Date.now() - startedAt })
     } else {
       debugLog('step2.result.success', {
+        requestId: serverRequestId,
         textLength: fortuneText.value.length,
         elapsedMs: Date.now() - startedAt
       })
@@ -219,14 +253,27 @@ async function onFortuneSubmit() {
     if (elapsed < MIN_FORTUNE_WAIT_MS) {
       await wait(MIN_FORTUNE_WAIT_MS - elapsed)
     }
-    fortuneError.value = err?.message || t('fortune.requestFailed')
+    const isAbort = err?.name === 'AbortError'
+    const fallbackMessage = isAbort
+      ? `Request timeout after ${FORTUNE_REQUEST_TIMEOUT_MS}ms (requestId: ${requestId})`
+      : t('fortune.requestFailed')
+    fortuneError.value = err?.message || fallbackMessage
     debugLog('step2.result.failed', {
+      requestId,
+      isAbort,
       message: err?.message || 'request-failed',
       elapsedMs: Date.now() - startedAt
     })
   } finally {
+    if (requestTimer) {
+      clearTimeout(requestTimer)
+    }
     fortuneLoading.value = false
-    debugLog('step2.submit.done', { loading: fortuneLoading.value })
+    debugLog('step2.submit.done', {
+      requestId,
+      loading: fortuneLoading.value,
+      elapsedMs: Date.now() - startedAt
+    })
   }
 }
 
@@ -448,6 +495,19 @@ onBeforeUnmount(() => {
               <option value="male">{{ t('fortune.genders.male') }}</option>
               <option value="female">{{ t('fortune.genders.female') }}</option>
             </select>
+          </label>
+
+          <label>
+            <span>{{ t('fortune.mbti') }}</span>
+            <input
+              v-model="mbti"
+              type="text"
+              list="fortune-mbti-options"
+              :placeholder="t('fortune.mbtiPlaceholder')"
+            >
+            <datalist id="fortune-mbti-options">
+              <option v-for="item in mbtiOptions" :key="item" :value="item" />
+            </datalist>
           </label>
 
           <fieldset>

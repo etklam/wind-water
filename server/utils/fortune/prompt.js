@@ -22,7 +22,7 @@ function stageTwoTemplate(mode, year) {
 延續上一輪的五行結果，現在請你做「一生運程」總覽（娛樂占卜風格）。
 
 篇幅與風格：
-1) 目標字數：900-1200字；寧可具體，不要空泛口號。
+1) 目標字數：大約1000字；寧可具體，不要空泛口號。
 2) 保留玄學語感，但每段都要落到「原因 + 建議 + 時機」。
 3) 禁止只列結論，必須交代與五行喜忌的連動邏輯。
 
@@ -83,7 +83,7 @@ function stageTwoTemplate(mode, year) {
 `.trim()
 }
 
-export function buildFortunePrompt({ mode, year, profile, gender, focusAreas, userMessages }) {
+export function buildFortunePrompt({ mode, year, profile, gender, mbti, focusAreas, userMessages }) {
   const profileText = JSON.stringify(profile, null, 2)
   const genderText = (() => {
     if (gender === 'male') return '男'
@@ -99,11 +99,12 @@ export function buildFortunePrompt({ mode, year, profile, gender, focusAreas, us
   const focusText = Array.isArray(focusAreas) && focusAreas.length > 0
     ? focusAreas.map((item) => focusMap[item] || item).join('、')
     : '綜合'
+  const mbtiText = mbti ? `；MBTI=${mbti}` : ''
   const baseMessages = [
     { role: 'system', content: '你是納音五行命理助手，務必用繁體中文回答。' },
     { role: 'system', content: STAGE_ONE_TEMPLATE },
     { role: 'system', content: stageTwoTemplate(mode, year) },
-    { role: 'system', content: `使用者條件：性別=${genderText}；重點領域=${focusText}。請在輸出中優先回應這些重點。` },
+    { role: 'system', content: `使用者條件：性別=${genderText}；重點領域=${focusText}${mbtiText}。請在輸出中優先回應這些重點。` },
     { role: 'user', content: `以下是命盤摘要（納音/五行）：\n${profileText}` }
   ]
 
