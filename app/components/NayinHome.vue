@@ -22,7 +22,7 @@ const locales = [
 ]
 
 const text = computed(() => messages[locale.value])
-const timezoneOptions = computed(() => buildTimezoneOptions(timezone.value))
+const timezoneOptions = computed(() => buildTimezoneOptions(timezone.value, locale.value))
 const frameSectorPoints = {
   south: '50,4 82,18 64,36 50,30',
   southwest: '82,18 96,50 70,50 64,36',
