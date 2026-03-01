@@ -22,7 +22,7 @@ function stageTwoTemplate(mode, year) {
 延續上一輪的五行結果，現在請你做「一生運程」總覽（娛樂占卜風格）。
 
 篇幅與風格：
-1) 目標字數：大約1000字；寧可具體，不要空泛口號。
+1) 目標字數：大約2000字；寧可具體，不要空泛口號。
 2) 保留玄學語感，但每段都要落到「原因 + 建議 + 時機」。
 3) 禁止只列結論，必須交代與五行喜忌的連動邏輯。
 
@@ -55,7 +55,7 @@ function stageTwoTemplate(mode, year) {
 今年：${year || new Date().getFullYear()}
 
 篇幅與風格：
-1) 避免流水帳，重點要有節奏與先後順序。
+1) 目標字數：大約2000字；避免流水帳，重點要有節奏與先後順序。
 2) 每個重點都要同時回答：為什麼、何時做、怎麼做。
 3) 保留娛樂占卜語氣，但建議必須可落地。
 
@@ -100,11 +100,18 @@ export function buildFortunePrompt({ mode, year, profile, gender, mbti, focusAre
     ? focusAreas.map((item) => focusMap[item] || item).join('、')
     : '綜合'
   const mbtiText = mbti ? `；MBTI=${mbti}` : ''
+  const mbtiImpactMessage = mbti
+    ? {
+        role: 'system',
+        content: '若使用者有提供 MBTI，請新增「MBTI對命格影響」段落，說明該人格傾向如何放大或緩衝命格中的五行喜忌，並給出 2-3 條可執行建議。輸出格式需額外包含：- MBTI對命格影響：'
+      }
+    : null
   const baseMessages = [
     { role: 'system', content: '你是納音五行命理助手，務必用繁體中文回答。' },
     { role: 'system', content: STAGE_ONE_TEMPLATE },
     { role: 'system', content: stageTwoTemplate(mode, year) },
     { role: 'system', content: `使用者條件：性別=${genderText}；重點領域=${focusText}${mbtiText}。請在輸出中優先回應這些重點。` },
+    ...(mbtiImpactMessage ? [mbtiImpactMessage] : []),
     { role: 'user', content: `以下是命盤摘要（納音/五行）：\n${profileText}` }
   ]
 
