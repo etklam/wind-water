@@ -45,6 +45,12 @@ export default defineEventHandler(async (event) => {
   }
 
   const config = useRuntimeConfig(event)
+  const openaiApiKey = process.env.OPENAI_API_KEY || process.env.NUXT_OPENAI_API_KEY || config.openaiApiKey
+  const openaiBaseUrl = process.env.OPENAI_BASE_URL || process.env.NUXT_OPENAI_BASE_URL || config.openaiBaseUrl
+  const openaiModel = process.env.OPENAI_MODEL || process.env.NUXT_OPENAI_MODEL || config.openaiModel
+  const openaiFallbackModels = process.env.OPENAI_FALLBACK_MODELS
+    || process.env.NUXT_OPENAI_FALLBACK_MODELS
+    || config.openaiFallbackModels
   const databaseUrl = process.env.DATABASE_URL || config.databaseUrl || ''
   const repository = createFortuneRepository({
     databaseUrl,
@@ -56,7 +62,7 @@ export default defineEventHandler(async (event) => {
   })
 
   try {
-    const models = normalizeModelList(config.openaiModel || 'gpt-4.1-mini', config.openaiFallbackModels)
+    const models = normalizeModelList(openaiModel || 'gpt-4.1-mini', openaiFallbackModels)
 
     const result = await runFortuneCompletion({
       mode,
@@ -69,8 +75,8 @@ export default defineEventHandler(async (event) => {
       repository,
       provider: {
         createCompletion: ({ messages }) => createOpenAICompletionWithFallback({
-          apiKey: config.openaiApiKey,
-          baseUrl: config.openaiBaseUrl,
+          apiKey: openaiApiKey,
+          baseUrl: openaiBaseUrl,
           models,
           messages
         })
