@@ -22,3 +22,16 @@ test('bagua UI translation keys exist in all locales', () => {
     assert.equal(typeof messages[locale].bagua.directions.southwest, 'string')
   }
 })
+
+test('guide and navigation translation keys exist in all locales', () => {
+  for (const locale of Object.keys(messages)) {
+    assert.equal(typeof messages[locale].nav.about, 'string')
+    assert.equal(typeof messages[locale].nav.guide, 'string')
+    assert.equal(typeof messages[locale].nav.viewGuide, 'string')
+    assert.equal(typeof messages[locale].nav.backToCalculator, 'string')
+    assert.equal(typeof messages[locale].guide.title, 'string')
+    assert.equal(typeof messages[locale].guide.howToReadTitle, 'string')
+    assert.equal(typeof messages[locale].guide.sections.wood.title, 'string')
+    assert.equal(typeof messages[locale].guide.sections.water.summary, 'string')
+  }
+})

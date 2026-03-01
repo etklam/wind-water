@@ -343,6 +343,28 @@ fieldset {
   color: #f4d89f;
 }
 
+.fortune-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.6rem 0 0.9rem;
+  font-size: 0.92rem;
+  overflow-x: auto;
+  display: block;
+}
+
+.fortune-markdown th,
+.fortune-markdown td {
+  border: 1px solid rgba(200, 169, 107, 0.35);
+  padding: 0.38rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.fortune-markdown th {
+  color: var(--gold-strong);
+  background: rgba(200, 169, 107, 0.08);
+}
+
 .fortune-actions {
   margin-top: 0.75rem;
   display: flex;

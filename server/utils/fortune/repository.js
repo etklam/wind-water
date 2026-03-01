@@ -18,6 +18,74 @@ function getPool(config) {
   return pool
 }
 
+async function columnExists(db, database, table, column) {
+  if (database) {
+    const [rows] = await db.execute(
+      `SELECT COUNT(*) AS c
+       FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = ?
+         AND TABLE_NAME = ?
+         AND COLUMN_NAME = ?`,
+      [database, table, column]
+    )
+    return Number(rows?.[0]?.c || 0) > 0
+  }
+
+  const [rows] = await db.execute(
+    `SELECT COUNT(*) AS c
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = ?
+       AND COLUMN_NAME = ?`,
+    [table, column]
+  )
+  return Number(rows?.[0]?.c || 0) > 0
+}
+
+async function indexExists(db, database, table, indexName) {
+  if (database) {
+    const [rows] = await db.execute(
+      `SELECT COUNT(*) AS c
+       FROM information_schema.STATISTICS
+       WHERE TABLE_SCHEMA = ?
+         AND TABLE_NAME = ?
+         AND INDEX_NAME = ?`,
+      [database, table, indexName]
+    )
+    return Number(rows?.[0]?.c || 0) > 0
+  }
+
+  const [rows] = await db.execute(
+    `SELECT COUNT(*) AS c
+     FROM information_schema.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = ?
+       AND INDEX_NAME = ?`,
+    [table, indexName]
+  )
+  return Number(rows?.[0]?.c || 0) > 0
+}
+
+export async function ensureFortuneCacheSchema(db, database) {
+  if (!(await columnExists(db, database, 'fortune_cache', 'year'))) {
+    await db.execute('ALTER TABLE fortune_cache ADD COLUMN `year` INT NULL AFTER `mode`')
+  }
+  if (!(await columnExists(db, database, 'fortune_cache', 'gender'))) {
+    await db.execute("ALTER TABLE fortune_cache ADD COLUMN `gender` VARCHAR(16) NOT NULL DEFAULT '' AFTER `mode`")
+  }
+  if (!(await columnExists(db, database, 'fortune_cache', 'focus_area'))) {
+    await db.execute("ALTER TABLE fortune_cache ADD COLUMN `focus_area` VARCHAR(128) NOT NULL DEFAULT '' AFTER `gender`")
+  }
+  if (await indexExists(db, database, 'fortune_cache', 'ux_fortune_cache_key')) {
+    await db.execute('ALTER TABLE fortune_cache DROP INDEX ux_fortune_cache_key')
+  }
+  if (!(await indexExists(db, database, 'fortune_cache', 'ux_fortune_cache_scope'))) {
+    await db.execute(
+      'ALTER TABLE fortune_cache ADD UNIQUE INDEX ux_fortune_cache_scope (cache_key, mode, year, gender, focus_area)'
+    )
+  }
+}
+
 export function createFortuneRepository(config) {
   const db = getPool(config)
   let ensureTablePromise
@@ -43,11 +111,7 @@ export function createFortuneRepository(config) {
       )
     }
     await ensureTablePromise
-    await db.execute('ALTER TABLE fortune_cache ADD COLUMN IF NOT EXISTS year INT NULL AFTER mode')
-    await db.execute('ALTER TABLE fortune_cache ADD COLUMN IF NOT EXISTS gender VARCHAR(16) NOT NULL DEFAULT \'\' AFTER mode')
-    await db.execute('ALTER TABLE fortune_cache ADD COLUMN IF NOT EXISTS focus_area VARCHAR(128) NOT NULL DEFAULT \'\' AFTER gender')
-    await db.execute('ALTER TABLE fortune_cache DROP INDEX IF EXISTS ux_fortune_cache_key')
-    await db.execute('ALTER TABLE fortune_cache ADD UNIQUE INDEX IF NOT EXISTS ux_fortune_cache_scope (cache_key, mode, year, gender, focus_area)')
+    await ensureFortuneCacheSchema(db, config.database)
   }
 
   return {

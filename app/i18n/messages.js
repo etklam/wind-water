@@ -1,6 +1,41 @@
 export const messages = {
   'zh-Hant': {
     app: { title: '納音五行計算' },
+    nav: {
+      about: '使用說明',
+      guide: '納音五行說明',
+      viewGuide: '查看說明',
+      backToCalculator: '返回計算頁'
+    },
+    guide: {
+      eyebrow: 'Nayin Element Guide',
+      title: '納音五行說明',
+      howToReadTitle: '如何閱讀這頁',
+      howToRead1: '本頁把六十甲子的 30 組納音，依五行分成木、火、土、金、水五類。',
+      howToRead2: '你可以從首頁「計算結果」中的納音，直接跳轉到這裡的對應條目。',
+      sections: {
+        wood: {
+          title: '木行納音',
+          summary: '木主生發與成長，常見於擴展、學習與向外延伸。'
+        },
+        fire: {
+          title: '火行納音',
+          summary: '火主光明與推進，常見於表現、熱情與行動速度。'
+        },
+        earth: {
+          title: '土行納音',
+          summary: '土主承載與整合，常見於穩定、責任與資源管理。'
+        },
+        metal: {
+          title: '金行納音',
+          summary: '金主收斂與決斷，常見於規範、品質與執行力。'
+        },
+        water: {
+          title: '水行納音',
+          summary: '水主流動與智慧，常見於調度、彈性與連結能力。'
+        }
+      }
+    },
     form: {
       step1Title: '第一步：輸入資料',
       birthDate: '出生日期',
@@ -79,6 +114,41 @@ export const messages = {
   },
   'zh-Hans': {
     app: { title: '纳音五行计算' },
+    nav: {
+      about: '使用说明',
+      guide: '纳音五行说明',
+      viewGuide: '查看说明',
+      backToCalculator: '返回计算页'
+    },
+    guide: {
+      eyebrow: 'Nayin Element Guide',
+      title: '纳音五行说明',
+      howToReadTitle: '如何阅读这页',
+      howToRead1: '本页把六十甲子的 30 组纳音，依五行分成木、火、土、金、水五类。',
+      howToRead2: '你可以从首页“计算结果”中的纳音，直接跳转到这里的对应条目。',
+      sections: {
+        wood: {
+          title: '木行纳音',
+          summary: '木主生发与成长，常见于扩展、学习与向外延伸。'
+        },
+        fire: {
+          title: '火行纳音',
+          summary: '火主光明与推进，常见于表现、热情与行动速度。'
+        },
+        earth: {
+          title: '土行纳音',
+          summary: '土主承载与整合，常见于稳定、责任与资源管理。'
+        },
+        metal: {
+          title: '金行纳音',
+          summary: '金主收敛与决断，常见于规范、品质与执行力。'
+        },
+        water: {
+          title: '水行纳音',
+          summary: '水主流动与智慧，常见于调度、弹性与连接能力。'
+        }
+      }
+    },
     form: {
       step1Title: '第一步：输入资料',
       birthDate: '出生日期',

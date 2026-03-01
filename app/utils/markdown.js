@@ -12,6 +12,19 @@ function renderInline(text) {
   return safe.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
 }
 
+function splitTableRow(line) {
+  let text = line.trim()
+  if (text.startsWith('|')) text = text.slice(1)
+  if (text.endsWith('|')) text = text.slice(0, -1)
+  return text.split('|').map((item) => item.trim())
+}
+
+function isTableSeparator(line) {
+  const cells = splitTableRow(line)
+  if (cells.length === 0) return false
+  return cells.every((cell) => /^:?-{3,}:?$/.test(cell))
+}
+
 export function renderMarkdown(input) {
   if (!input || typeof input !== 'string') {
     return ''
@@ -39,7 +52,8 @@ export function renderMarkdown(input) {
     listItems = []
   }
 
-  for (const raw of lines) {
+  for (let i = 0; i < lines.length; i += 1) {
+    const raw = lines[i]
     const line = raw.trim()
     if (!line) {
       flushParagraph()
@@ -76,6 +90,34 @@ export function renderMarkdown(input) {
       listType = 'ol'
       listItems.push(ordered[1].trim())
       continue
+    }
+
+    const nextLine = lines[i + 1]
+    if (line.includes('|') && nextLine && isTableSeparator(nextLine)) {
+      const headers = splitTableRow(line)
+      const separators = splitTableRow(nextLine)
+      if (headers.length === separators.length) {
+        flushParagraph()
+        flushList()
+        const bodyRows = []
+        i += 2
+        while (i < lines.length) {
+          const rowLine = lines[i].trim()
+          if (!rowLine || !rowLine.includes('|')) break
+          const cells = splitTableRow(rowLine)
+          if (cells.length !== headers.length) break
+          bodyRows.push(cells)
+          i += 1
+        }
+        i -= 1
+
+        const headerHtml = headers.map((cell) => `<th>${renderInline(cell)}</th>`).join('')
+        const bodyHtml = bodyRows
+          .map((row) => `<tr>${row.map((cell) => `<td>${renderInline(cell)}</td>`).join('')}</tr>`)
+          .join('')
+        blocks.push(`<table><thead><tr>${headerHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`)
+        continue
+      }
     }
 
     flushList()

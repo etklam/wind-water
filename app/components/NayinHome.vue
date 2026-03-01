@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { computeNayinResult } from '../composables/useNayinCalculator.js'
 import { buildFortuneRequestPayload } from '../utils/fortune-request.js'
 import { messages } from '../i18n/messages.js'
@@ -8,8 +8,13 @@ import { nineGridCells } from '../utils/nine-grid.js'
 import { buildTimezoneOptions, resolveDefaultTimezone } from '../utils/timezones.js'
 import { renderMarkdown } from '../utils/markdown.js'
 import { getNayinGuideByName } from '../utils/nayin-guide.js'
+import { useRoute, useRouter } from '#imports'
 
-const locale = ref('zh-Hant')
+const route = useRoute()
+const router = useRouter()
+const routeLang = route.query.lang
+const initialLocale = routeLang === 'zh-Hans' ? 'zh-Hans' : 'zh-Hant'
+const locale = ref(initialLocale)
 const birthDate = ref('')
 const birthTime = ref('12:00')
 const timezone = ref(resolveDefaultTimezone())
@@ -216,10 +221,17 @@ function cellClass(cell) {
 function nayinGuideHref(nayin) {
   const item = getNayinGuideByName(nayin)
   if (!item) {
-    return '/nayin-guide'
+    return `/nayin-guide?lang=${locale.value}`
   }
-  return `/nayin-guide#${item.id}`
+  return `/nayin-guide?lang=${locale.value}#${item.id}`
 }
+
+watch(locale, async (value) => {
+  if (route.query.lang === value) {
+    return
+  }
+  await router.replace({ query: { ...route.query, lang: value } })
+})
 
 onBeforeUnmount(() => {
   if (freshTimer) {
@@ -239,8 +251,8 @@ onBeforeUnmount(() => {
         <h1>{{ t('app.title') }}</h1>
       </div>
       <div class="top-actions">
-        <NuxtLink to="/about" class="about-link">使用說明</NuxtLink>
-        <NuxtLink to="/nayin-guide" class="about-link">納音五行說明</NuxtLink>
+        <NuxtLink :to="`/about?lang=${locale}`" class="about-link">{{ t('nav.about') }}</NuxtLink>
+        <NuxtLink :to="`/nayin-guide?lang=${locale}`" class="about-link">{{ t('nav.guide') }}</NuxtLink>
         <div class="lang-switch" role="group" aria-label="language switcher">
         <button
           v-for="item in locales"
@@ -412,6 +424,17 @@ onBeforeUnmount(() => {
           <h2>{{ t('result.title') }}</h2>
         </header>
 
+        <article v-if="fortuneText" class="fortune-result">
+          <h3>{{ t('fortune.resultTitle') }}</h3>
+          <div class="fortune-markdown" v-html="fortuneHtml" />
+          <div class="fortune-actions">
+            <button type="button" class="fortune-copy" @click="onCopyFortune">
+              {{ t('fortune.copy') }}
+            </button>
+            <span v-if="copyState === 'copied'" class="copy-status">{{ t('fortune.copied') }}</span>
+          </div>
+        </article>
+
         <div class="pillars" v-if="result">
           <article v-for="k in ['year', 'month', 'day', 'hour']" :key="k" class="pillar-card">
             <h3>{{ t(`result.pillars.${k}`) }}</h3>
@@ -423,23 +446,12 @@ onBeforeUnmount(() => {
                 class="pillar-guide-link"
                 :to="nayinGuideHref(result.pillars[k].nayin)"
               >
-                查看說明
+                {{ t('nav.viewGuide') }}
               </NuxtLink>
             </p>
             <p>{{ t('result.element') }}: {{ result.pillars[k].element ? t(`elements.${result.pillars[k].element}`) : '-' }}</p>
           </article>
         </div>
-
-        <article v-if="fortuneText" class="fortune-result">
-          <h3>{{ t('fortune.resultTitle') }}</h3>
-          <div class="fortune-markdown" v-html="fortuneHtml" />
-          <div class="fortune-actions">
-            <button type="button" class="fortune-copy" @click="onCopyFortune">
-              {{ t('fortune.copy') }}
-            </button>
-            <span v-if="copyState === 'copied'" class="copy-status">{{ t('fortune.copied') }}</span>
-          </div>
-        </article>
       </section>
     </section>
   </main>
