@@ -1,20 +1,29 @@
 <script setup>
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { computeNayinResult } from '../composables/useNayinCalculator.js'
+import { buildFortuneRequestPayload } from '../utils/fortune-request.js'
 import { messages } from '../i18n/messages.js'
 import { elementOrder } from '../utils/elements.js'
 import { nineGridCells } from '../utils/nine-grid.js'
 import { buildTimezoneOptions } from '../utils/timezones.js'
+import { renderMarkdown } from '../utils/markdown.js'
 
 const locale = ref('zh-Hant')
 const birthDate = ref('')
 const birthTime = ref('12:00')
 const timezone = ref(Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Taipei')
 const mode = ref('gregorian')
-const unknownHour = ref(false)
+const unknownHour = ref(true)
 const error = ref('')
 const result = ref(null)
 const stageFresh = ref(false)
+const gender = ref('')
+const fortuneType = ref('year')
+const fortuneLoading = ref(false)
+const fortuneError = ref('')
+const fortuneText = ref('')
+const focusArea = ref('overall')
+const copyState = ref('idle')
 
 const locales = [
   { code: 'zh-Hant', label: '繁中' },
@@ -46,12 +55,24 @@ const dominantElement = computed(() => {
     return result.value.totals[key] > result.value.totals[winner] ? key : winner
   }, null)
 })
+const showChartPrivacyWarning = computed(() => (
+  Boolean(birthDate.value) && Boolean(birthTime.value) && !unknownHour.value
+))
+const fortuneHtml = computed(() => renderMarkdown(fortuneText.value))
 
 function t(path) {
   return path.split('.').reduce((acc, key) => acc?.[key], text.value) || path
 }
 
 let freshTimer = null
+let copyTimer = null
+const MIN_FORTUNE_WAIT_MS = 3000
+
+function wait(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
 
 function onSubmit() {
   if (!birthDate.value) {
@@ -75,9 +96,92 @@ function onSubmit() {
     clearTimeout(freshTimer)
   }
   stageFresh.value = true
+  fortuneText.value = ''
+  fortuneError.value = ''
   freshTimer = setTimeout(() => {
     stageFresh.value = false
   }, 650)
+}
+
+const canFortune = computed(() => !!result.value && !fortuneLoading.value && Boolean(gender.value))
+
+async function onFortuneSubmit() {
+  if (!result.value) {
+    fortuneError.value = t('fortune.needFiveElements')
+    return
+  }
+  if (!gender.value) {
+    fortuneError.value = t('fortune.genderRequired')
+    return
+  }
+
+  fortuneLoading.value = true
+  fortuneError.value = ''
+  fortuneText.value = ''
+  copyState.value = 'idle'
+  const startedAt = Date.now()
+
+  try {
+    const payload = buildFortuneRequestPayload({
+      totals: result.value.totals,
+      gender: gender.value,
+      fortuneType: fortuneType.value,
+      focusAreas: [focusArea.value]
+    })
+
+    const response = await fetch('/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+
+    const data = await response.json()
+    if (!response.ok) {
+      const message = data?.data?.error?.message || data?.message || 'Request failed'
+      throw new Error(message)
+    }
+
+    const elapsed = Date.now() - startedAt
+    if (elapsed < MIN_FORTUNE_WAIT_MS) {
+      await wait(MIN_FORTUNE_WAIT_MS - elapsed)
+    }
+
+    fortuneText.value = data?.choices?.[0]?.message?.content || ''
+    if (!fortuneText.value) {
+      fortuneError.value = t('fortune.emptyResult')
+    }
+  } catch (err) {
+    const elapsed = Date.now() - startedAt
+    if (elapsed < MIN_FORTUNE_WAIT_MS) {
+      await wait(MIN_FORTUNE_WAIT_MS - elapsed)
+    }
+    fortuneError.value = err?.message || t('fortune.requestFailed')
+  } finally {
+    fortuneLoading.value = false
+  }
+}
+
+async function onCopyFortune() {
+  if (!fortuneText.value) {
+    return
+  }
+
+  try {
+    if (globalThis?.navigator?.clipboard?.writeText) {
+      await globalThis.navigator.clipboard.writeText(fortuneText.value)
+    } else {
+      throw new Error('Clipboard API unavailable')
+    }
+    copyState.value = 'copied'
+    if (copyTimer) {
+      clearTimeout(copyTimer)
+    }
+    copyTimer = setTimeout(() => {
+      copyState.value = 'idle'
+    }, 1800)
+  } catch {
+    fortuneError.value = t('fortune.copyFailed')
+  }
 }
 
 function elementStrength(key) {
@@ -114,6 +218,9 @@ onBeforeUnmount(() => {
   if (freshTimer) {
     clearTimeout(freshTimer)
   }
+  if (copyTimer) {
+    clearTimeout(copyTimer)
+  }
 })
 </script>
 
@@ -140,8 +247,12 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
-    <section class="content-grid">
-      <section class="panel form-panel">
+    <section class="content-grid flow-grid">
+      <section class="panel form-panel step1-panel">
+        <header class="result-header">
+          <h2>{{ t('form.step1Title') }}</h2>
+        </header>
+
         <label>
           <span>{{ t('form.birthDate') }}</span>
           <input v-model="birthDate" type="date">
@@ -151,6 +262,7 @@ onBeforeUnmount(() => {
           <span>{{ t('form.birthTime') }}</span>
           <input v-model="birthTime" :disabled="unknownHour" type="time">
         </label>
+        <p v-if="showChartPrivacyWarning" class="privacy-warning">{{ t('warnings.chartPrivacy') }}</p>
 
         <label class="inline-check">
           <input v-model="unknownHour" type="checkbox">
@@ -182,7 +294,7 @@ onBeforeUnmount(() => {
         <p v-if="error" class="error">{{ error }}</p>
       </section>
 
-      <section class="panel result-panel">
+      <section class="panel result-panel bagua-panel">
         <header class="result-header">
           <h2>{{ t('bagua.title') }}</h2>
           <p class="rule" v-if="result">{{ t('result.rule') }}: {{ t(`rules.${result.meta.rule}`) }}</p>
@@ -234,6 +346,63 @@ onBeforeUnmount(() => {
             <strong class="element-value">{{ result ? result.totals[cell.element] : '-' }}</strong>
           </article>
         </div>
+      </section>
+
+      <section class="panel form-panel step2-panel">
+        <div class="fortune-panel standalone">
+          <h3>{{ t('fortune.title') }}</h3>
+          <p class="fortune-hint">{{ t('fortune.hint') }}</p>
+
+          <label>
+            <span>{{ t('fortune.gender') }}</span>
+            <select v-model="gender">
+              <option value="">{{ t('fortune.genderPlaceholder') }}</option>
+              <option value="male">{{ t('fortune.genders.male') }}</option>
+              <option value="female">{{ t('fortune.genders.female') }}</option>
+            </select>
+          </label>
+
+          <fieldset>
+            <legend>{{ t('fortune.typeTitle') }}</legend>
+            <label class="mode-option">
+              <input v-model="fortuneType" type="radio" value="year">
+              <span>{{ t('fortune.types.year2026') }}</span>
+            </label>
+            <label class="mode-option">
+              <input v-model="fortuneType" type="radio" value="life">
+              <span>{{ t('fortune.types.life') }}</span>
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>{{ t('fortune.focusTitle') }}</legend>
+            <select v-model="focusArea">
+              <option value="overall">{{ t('fortune.focuses.overall') }}</option>
+              <option value="health">{{ t('fortune.focuses.health') }}</option>
+              <option value="career">{{ t('fortune.focuses.career') }}</option>
+              <option value="love">{{ t('fortune.focuses.love') }}</option>
+            </select>
+          </fieldset>
+
+          <button
+            type="button"
+            class="submit fortune-submit"
+            :disabled="!canFortune"
+            @click="onFortuneSubmit"
+          >
+            {{ fortuneLoading ? t('fortune.loading') : t('fortune.submit') }}
+          </button>
+
+          <p v-if="fortuneLoading" class="fortune-loading">{{ t('fortune.loading') }}</p>
+          <p v-if="!result" class="fortune-lock">{{ t('fortune.needFiveElements') }}</p>
+          <p v-if="fortuneError" class="error">{{ fortuneError }}</p>
+        </div>
+      </section>
+
+      <section class="panel result-panel output-panel">
+        <header class="result-header">
+          <h2>{{ t('result.title') }}</h2>
+        </header>
 
         <div class="pillars" v-if="result">
           <article v-for="k in ['year', 'month', 'day', 'hour']" :key="k" class="pillar-card">
@@ -243,6 +412,17 @@ onBeforeUnmount(() => {
             <p>{{ t('result.element') }}: {{ result.pillars[k].element ? t(`elements.${result.pillars[k].element}`) : '-' }}</p>
           </article>
         </div>
+
+        <article v-if="fortuneText" class="fortune-result">
+          <h3>{{ t('fortune.resultTitle') }}</h3>
+          <div class="fortune-markdown" v-html="fortuneHtml" />
+          <div class="fortune-actions">
+            <button type="button" class="fortune-copy" @click="onCopyFortune">
+              {{ t('fortune.copy') }}
+            </button>
+            <span v-if="copyState === 'copied'" class="copy-status">{{ t('fortune.copied') }}</span>
+          </div>
+        </article>
       </section>
     </section>
   </main>

@@ -1,0 +1,91 @@
+import { createFortuneRepository } from '../../../utils/fortune/repository.js'
+import { createOpenAICompletionWithFallback, normalizeModelList } from '../../../utils/fortune/provider.js'
+import { runFortuneCompletion } from '../../../utils/fortune/service.js'
+import { buildChatCompletionResponse, buildOpenAIError } from '../../../utils/fortune/openai-shape.js'
+
+function normalizeBirthInput(metadata = {}) {
+  if (!metadata.birth) {
+    return null
+  }
+
+  const birth = metadata.birth
+  if (!birth.date) {
+    return null
+  }
+
+  return {
+    date: birth.date,
+    time: birth.time || undefined,
+    timezone: birth.timezone || 'Asia/Taipei',
+    mode: metadata.mode === 'life' ? 'traditional' : 'gregorian'
+  }
+}
+
+export default defineEventHandler(async (event) => {
+  const body = await readBody(event)
+  if (!body || typeof body !== 'object') {
+    throw buildOpenAIError({ message: 'Request body is required.' })
+  }
+
+  const metadata = body.metadata || {}
+  const mode = metadata.mode === 'life' ? 'life' : 'year'
+  const year = Number(metadata.year || new Date().getFullYear())
+  const gender = metadata.gender || ''
+  const focusAreas = Array.isArray(metadata.focus_areas) ? metadata.focus_areas : []
+  const birthInput = normalizeBirthInput(metadata)
+  const fiveElements = metadata.five_elements || null
+  const userMessages = Array.isArray(body.messages) ? body.messages : []
+
+  if (!birthInput && !fiveElements) {
+    throw buildOpenAIError({
+      message: 'Provide either metadata.birth or metadata.five_elements.',
+      code: 'missing_profile_input',
+      statusCode: 400
+    })
+  }
+
+  const config = useRuntimeConfig(event)
+  const repository = createFortuneRepository({
+    host: config.mysqlHost,
+    port: config.mysqlPort,
+    user: config.mysqlUser,
+    password: config.mysqlPassword,
+    database: config.mysqlDatabase
+  })
+
+  try {
+    const models = normalizeModelList(config.openaiModel || 'gpt-4.1-mini', config.openaiFallbackModels)
+
+    const result = await runFortuneCompletion({
+      mode,
+      year,
+      gender,
+      focusAreas,
+      birthInput,
+      fiveElements,
+      userMessages,
+      repository,
+      provider: {
+        createCompletion: ({ messages }) => createOpenAICompletionWithFallback({
+          apiKey: config.openaiApiKey,
+          baseUrl: config.openaiBaseUrl,
+          models,
+          messages
+        })
+      }
+    })
+
+    return buildChatCompletionResponse({
+      model: result.model,
+      text: result.text,
+      usage: result.usage
+    })
+  } catch (error) {
+    throw buildOpenAIError({
+      message: error.message || 'Completion failed.',
+      type: 'api_error',
+      code: 'completion_failed',
+      statusCode: 500
+    })
+  }
+})
