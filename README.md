@@ -17,6 +17,7 @@ OPENAI_API_KEY=your_provider_key
 OPENAI_BASE_URL=https://your-openai-compatible-provider/v1
 OPENAI_MODEL=gpt-4.1-mini
 OPENAI_FALLBACK_MODELS=model-b,model-c
+OPENAI_TIMEOUT_MS=45000
 DEBUG_FORTUNE=false
 NUXT_PUBLIC_DEBUG_FORTUNE=false
 

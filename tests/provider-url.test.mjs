@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   buildChatCompletionsUrl,
   createOpenAICompletionWithFallback,
+  createOpenAICompletion,
   normalizeModelList
 } from '../server/utils/fortune/provider.js'
 
@@ -94,4 +95,26 @@ test('createOpenAICompletionWithFallback does not retry when only primary model 
   )
 
   assert.deepEqual(calls, ['qwen/main'])
+})
+
+test('createOpenAICompletion times out when upstream hangs', async () => {
+  const fetchImpl = (_url, init) => new Promise((_resolve, reject) => {
+    init.signal.addEventListener('abort', () => {
+      const err = new Error('aborted')
+      err.name = 'AbortError'
+      reject(err)
+    })
+  })
+
+  await assert.rejects(
+    () => createOpenAICompletion({
+      apiKey: 'test-key',
+      baseUrl: 'https://provider.example.com/v1',
+      model: 'qwen/main',
+      messages: [{ role: 'user', content: 'hello' }],
+      timeoutMs: 5,
+      fetchImpl
+    }),
+    /OpenAI request timeout/
+  )
 })

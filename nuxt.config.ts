@@ -9,6 +9,7 @@ export default defineNuxtConfig({
     openaiBaseUrl: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
     openaiModel: process.env.OPENAI_MODEL || 'gpt-4.1-mini',
     openaiFallbackModels: process.env.OPENAI_FALLBACK_MODELS || '',
+    openaiTimeoutMs: Number(process.env.OPENAI_TIMEOUT_MS || 45000),
     mysqlHost: process.env.MYSQL_HOST || '127.0.0.1',
     mysqlPort: Number(process.env.MYSQL_PORT || 3306),
     mysqlUser: process.env.MYSQL_USER || '',

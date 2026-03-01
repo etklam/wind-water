@@ -152,7 +152,6 @@ async function onFortuneSubmit() {
   fortuneError.value = ''
   fortuneText.value = ''
   copyState.value = 'idle'
-  const startedAt = Date.now()
 
   try {
     const payload = buildFortuneRequestPayload({
@@ -174,13 +173,29 @@ async function onFortuneSubmit() {
       body: JSON.stringify(payload)
     })
 
-    const data = await response.json()
+    const contentType = response.headers.get('content-type') || ''
+    const rawText = await response.text()
+    let data = null
+    if (contentType.includes('application/json')) {
+      try {
+        data = rawText ? JSON.parse(rawText) : {}
+      } catch (parseErr) {
+        debugLog('step2.api.invalid-json', {
+          status: response.status,
+          contentType,
+          parseError: parseErr?.message || 'unknown',
+          bodyPreview: rawText.slice(0, 160)
+        })
+      }
+    }
     debugLog('step2.api.response', {
       status: response.status,
-      ok: response.ok
+      ok: response.ok,
+      contentType
     })
     if (!response.ok) {
-      const message = data?.data?.error?.message || data?.message || 'Request failed'
+      const statusHint = `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`
+      const message = data?.data?.error?.message || data?.message || statusHint
       throw new Error(message)
     }
 

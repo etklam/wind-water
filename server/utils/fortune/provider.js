@@ -16,24 +16,40 @@ export async function createOpenAICompletion({
   model,
   messages,
   temperature = 0.7,
+  timeoutMs = 45000,
   fetchImpl = fetch
 }) {
   if (!apiKey) {
     throw new Error('OPENAI_API_KEY is missing')
   }
 
-  const response = await fetchImpl(buildChatCompletionsUrl(baseUrl), {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), Number(timeoutMs || 45000))
+  let response
+  try {
+    response = await fetchImpl(buildChatCompletionsUrl(baseUrl), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        temperature
+      }),
+      signal: controller.signal
     })
-  })
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      const timeoutError = new Error(`OpenAI request timeout after ${Number(timeoutMs || 45000)}ms`)
+      timeoutError.statusCode = 504
+      throw timeoutError
+    }
+    throw error
+  } finally {
+    clearTimeout(timer)
+  }
 
   if (!response.ok) {
     const detail = await response.text()
@@ -87,6 +103,7 @@ export async function createOpenAICompletionWithFallback({
   models,
   messages,
   temperature = 0.7,
+  timeoutMs = 45000,
   fetchImpl = fetch
 }) {
   let lastError
@@ -98,6 +115,7 @@ export async function createOpenAICompletionWithFallback({
         model,
         messages,
         temperature,
+        timeoutMs,
         fetchImpl
       })
     } catch (error) {

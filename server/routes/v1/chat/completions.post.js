@@ -65,6 +65,7 @@ export default defineEventHandler(async (event) => {
   const openaiFallbackModels = process.env.OPENAI_FALLBACK_MODELS
     || process.env.NUXT_OPENAI_FALLBACK_MODELS
     || config.openaiFallbackModels
+  const openaiTimeoutMs = Number(process.env.OPENAI_TIMEOUT_MS || config.openaiTimeoutMs || 45000)
   const databaseUrl = process.env.DATABASE_URL || config.databaseUrl || ''
   const repository = createFortuneRepository({
     databaseUrl,
@@ -77,7 +78,11 @@ export default defineEventHandler(async (event) => {
 
   try {
     const models = normalizeModelList(openaiModel || 'gpt-4.1-mini', openaiFallbackModels)
-    log('provider.models', { modelCount: models.length, firstModel: models[0] || '' })
+    log('provider.models', {
+      modelCount: models.length,
+      firstModel: models[0] || '',
+      timeoutMs: openaiTimeoutMs
+    })
 
     const result = await runFortuneCompletion({
       mode,
@@ -93,6 +98,7 @@ export default defineEventHandler(async (event) => {
           apiKey: openaiApiKey,
           baseUrl: openaiBaseUrl,
           models,
+          timeoutMs: openaiTimeoutMs,
           messages
         })
       }
@@ -109,15 +115,17 @@ export default defineEventHandler(async (event) => {
       usage: result.usage
     })
   } catch (error) {
+    const statusCode = Number.isInteger(error?.statusCode) ? error.statusCode : 500
     log('request.failed', {
       message: error?.message || 'unknown error',
+      statusCode,
       elapsedMs: Date.now() - startedAt
     })
     throw buildOpenAIError({
       message: error.message || 'Completion failed.',
       type: 'api_error',
       code: 'completion_failed',
-      statusCode: 500
+      statusCode
     })
   }
 })
