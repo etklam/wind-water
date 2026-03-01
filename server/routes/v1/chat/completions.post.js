@@ -2,7 +2,7 @@ import { createFortuneRepository } from '../../../utils/fortune/repository.js'
 import { createOpenAICompletionWithFallback, normalizeModelList } from '../../../utils/fortune/provider.js'
 import { runFortuneCompletion } from '../../../utils/fortune/service.js'
 import { buildChatCompletionResponse, buildOpenAIError } from '../../../utils/fortune/openai-shape.js'
-import { createServerFortuneLogger } from '../../../utils/fortune/debug-log.js'
+import { createServerFortuneLogger, sanitizeDebugPayload } from '../../../utils/fortune/debug-log.js'
 import { randomUUID } from 'node:crypto'
 
 function normalizeBirthInput(metadata = {}) {
@@ -25,6 +25,9 @@ function normalizeBirthInput(metadata = {}) {
 
 export default defineEventHandler(async (event) => {
   const log = createServerFortuneLogger({ scope: 'route.chat-completions' })
+  const opsLog = (name, data = {}) => {
+    console.info(`[fortune][route.chat-completions] ${name}`, sanitizeDebugPayload(data))
+  }
   const startedAt = Date.now()
   const incomingRequestId = String(event.node.req.headers['x-request-id'] || '').trim()
   const requestId = incomingRequestId || randomUUID()
@@ -55,6 +58,11 @@ export default defineEventHandler(async (event) => {
     hasMbti: Boolean(mbti),
     focusAreaCount: focusAreas.length,
     messageCount: userMessages.length
+  })
+  opsLog('request.received', {
+    requestId,
+    mode,
+    year
   })
 
   if (!birthInput && !fiveElements) {
@@ -126,6 +134,12 @@ export default defineEventHandler(async (event) => {
       model: result.model,
       elapsedMs: Date.now() - startedAt
     })
+    opsLog('request.completed', {
+      requestId,
+      source: result.source,
+      model: result.model,
+      elapsedMs: Date.now() - startedAt
+    })
 
     return buildChatCompletionResponse({
       model: result.model,
@@ -135,6 +149,12 @@ export default defineEventHandler(async (event) => {
   } catch (error) {
     const statusCode = Number.isInteger(error?.statusCode) ? error.statusCode : 500
     log('request.failed', {
+      requestId,
+      message: error?.message || 'unknown error',
+      statusCode,
+      elapsedMs: Date.now() - startedAt
+    })
+    opsLog('request.failed', {
       requestId,
       message: error?.message || 'unknown error',
       statusCode,
