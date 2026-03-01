@@ -17,6 +17,8 @@ OPENAI_API_KEY=your_provider_key
 OPENAI_BASE_URL=https://your-openai-compatible-provider/v1
 OPENAI_MODEL=gpt-4.1-mini
 OPENAI_FALLBACK_MODELS=model-b,model-c
+DEBUG_FORTUNE=false
+NUXT_PUBLIC_DEBUG_FORTUNE=false
 
 MYSQL_HOST=127.0.0.1
 MYSQL_PORT=3306
@@ -27,6 +29,7 @@ MYSQL_DATABASE=wind_water
 
 `OPENAI_BASE_URL` 可指向任何 OpenAI-compatible 第三方服務，不限定官方 OpenAI。
 `OPENAI_FALLBACK_MODELS` 用逗號分隔，主模型 429 時會依序嘗試備援模型。若為空，代表不啟用 fallback。
+`DEBUG_FORTUNE` 與 `NUXT_PUBLIC_DEBUG_FORTUNE` 設為 `true` 可開啟後端與前端 debug log。
 
 ### 2. 建立快取資料表（MySQL）
 

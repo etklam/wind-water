@@ -2,6 +2,7 @@ import { createFortuneRepository } from '../../../utils/fortune/repository.js'
 import { createOpenAICompletionWithFallback, normalizeModelList } from '../../../utils/fortune/provider.js'
 import { runFortuneCompletion } from '../../../utils/fortune/service.js'
 import { buildChatCompletionResponse, buildOpenAIError } from '../../../utils/fortune/openai-shape.js'
+import { createServerFortuneLogger } from '../../../utils/fortune/debug-log.js'
 
 function normalizeBirthInput(metadata = {}) {
   if (!metadata.birth) {
@@ -22,8 +23,11 @@ function normalizeBirthInput(metadata = {}) {
 }
 
 export default defineEventHandler(async (event) => {
+  const log = createServerFortuneLogger({ scope: 'route.chat-completions' })
+  const startedAt = Date.now()
   const body = await readBody(event)
   if (!body || typeof body !== 'object') {
+    log('request.invalid-body', { kind: typeof body })
     throw buildOpenAIError({ message: 'Request body is required.' })
   }
 
@@ -35,8 +39,18 @@ export default defineEventHandler(async (event) => {
   const birthInput = normalizeBirthInput(metadata)
   const fiveElements = metadata.five_elements || null
   const userMessages = Array.isArray(body.messages) ? body.messages : []
+  log('request.received', {
+    mode,
+    year,
+    hasBirth: Boolean(birthInput),
+    hasFiveElements: Boolean(fiveElements),
+    hasGender: Boolean(gender),
+    focusAreaCount: focusAreas.length,
+    messageCount: userMessages.length
+  })
 
   if (!birthInput && !fiveElements) {
+    log('request.invalid-profile-input', { mode, year })
     throw buildOpenAIError({
       message: 'Provide either metadata.birth or metadata.five_elements.',
       code: 'missing_profile_input',
@@ -63,6 +77,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     const models = normalizeModelList(openaiModel || 'gpt-4.1-mini', openaiFallbackModels)
+    log('provider.models', { modelCount: models.length, firstModel: models[0] || '' })
 
     const result = await runFortuneCompletion({
       mode,
@@ -82,6 +97,11 @@ export default defineEventHandler(async (event) => {
         })
       }
     })
+    log('request.completed', {
+      source: result.source,
+      model: result.model,
+      elapsedMs: Date.now() - startedAt
+    })
 
     return buildChatCompletionResponse({
       model: result.model,
@@ -89,6 +109,10 @@ export default defineEventHandler(async (event) => {
       usage: result.usage
     })
   } catch (error) {
+    log('request.failed', {
+      message: error?.message || 'unknown error',
+      elapsedMs: Date.now() - startedAt
+    })
     throw buildOpenAIError({
       message: error.message || 'Completion failed.',
       type: 'api_error',

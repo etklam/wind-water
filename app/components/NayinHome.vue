@@ -8,10 +8,12 @@ import { nineGridCells } from '../utils/nine-grid.js'
 import { buildTimezoneOptions, resolveDefaultTimezone } from '../utils/timezones.js'
 import { renderMarkdown } from '../utils/markdown.js'
 import { getNayinGuideByName } from '../utils/nayin-guide.js'
-import { useRoute, useRouter } from '#imports'
+import { createClientFortuneLogger, isClientFortuneDebugEnabled } from '../utils/debug-log.js'
+import { useRoute, useRouter, useRuntimeConfig } from '#imports'
 
 const route = useRoute()
 const router = useRouter()
+const runtimeConfig = useRuntimeConfig()
 const routeLang = route.query.lang
 const initialLocale = routeLang === 'zh-Hans' ? 'zh-Hans' : 'zh-Hant'
 const locale = ref(initialLocale)
@@ -30,6 +32,11 @@ const fortuneError = ref('')
 const fortuneText = ref('')
 const focusArea = ref('overall')
 const copyState = ref('idle')
+const debugEnabled = computed(() => isClientFortuneDebugEnabled(runtimeConfig.public?.debugFortune))
+const debugLog = createClientFortuneLogger({
+  scope: 'ui.nayin-home',
+  enabled: () => debugEnabled.value
+})
 
 const locales = [
   { code: 'zh-Hant', label: '繁中' },
@@ -79,12 +86,21 @@ function wait(ms) {
 }
 
 function onSubmit() {
+  debugLog('step1.submit.start', {
+    hasBirthDate: Boolean(birthDate.value),
+    hasBirthTime: Boolean(birthTime.value),
+    unknownHour: unknownHour.value,
+    timezone: timezone.value,
+    mode: mode.value
+  })
   if (!birthDate.value) {
     error.value = t('errors.requiredDate')
+    debugLog('step1.submit.validation-failed', { reason: 'missing-birth-date' })
     return
   }
   if (!timezone.value) {
     error.value = t('errors.requiredTimezone')
+    debugLog('step1.submit.validation-failed', { reason: 'missing-timezone' })
     return
   }
 
@@ -94,6 +110,10 @@ function onSubmit() {
     time: unknownHour.value ? undefined : birthTime.value,
     timezone: timezone.value,
     mode: mode.value
+  })
+  debugLog('step1.submit.success', {
+    rule: result.value?.meta?.rule || '',
+    totals: result.value?.totals || {}
   })
 
   if (freshTimer) {
@@ -110,12 +130,21 @@ function onSubmit() {
 const canFortune = computed(() => !!result.value && !fortuneLoading.value && Boolean(gender.value))
 
 async function onFortuneSubmit() {
+  const startedAt = Date.now()
+  debugLog('step2.submit.start', {
+    hasResult: Boolean(result.value),
+    gender: gender.value,
+    fortuneType: fortuneType.value,
+    focusArea: focusArea.value
+  })
   if (!result.value) {
     fortuneError.value = t('fortune.needFiveElements')
+    debugLog('step2.submit.validation-failed', { reason: 'missing-five-elements' })
     return
   }
   if (!gender.value) {
     fortuneError.value = t('fortune.genderRequired')
+    debugLog('step2.submit.validation-failed', { reason: 'missing-gender' })
     return
   }
 
@@ -132,6 +161,12 @@ async function onFortuneSubmit() {
       fortuneType: fortuneType.value,
       focusAreas: [focusArea.value]
     })
+    debugLog('step2.payload.built', {
+      mode: payload?.metadata?.mode || '',
+      year: payload?.metadata?.year || null,
+      hasGender: Boolean(payload?.metadata?.gender),
+      focusAreas: payload?.metadata?.focus_areas || []
+    })
 
     const response = await fetch('/v1/chat/completions', {
       method: 'POST',
@@ -140,6 +175,10 @@ async function onFortuneSubmit() {
     })
 
     const data = await response.json()
+    debugLog('step2.api.response', {
+      status: response.status,
+      ok: response.ok
+    })
     if (!response.ok) {
       const message = data?.data?.error?.message || data?.message || 'Request failed'
       throw new Error(message)
@@ -153,6 +192,12 @@ async function onFortuneSubmit() {
     fortuneText.value = data?.choices?.[0]?.message?.content || ''
     if (!fortuneText.value) {
       fortuneError.value = t('fortune.emptyResult')
+      debugLog('step2.result.empty', { elapsedMs: Date.now() - startedAt })
+    } else {
+      debugLog('step2.result.success', {
+        textLength: fortuneText.value.length,
+        elapsedMs: Date.now() - startedAt
+      })
     }
   } catch (err) {
     const elapsed = Date.now() - startedAt
@@ -160,13 +205,19 @@ async function onFortuneSubmit() {
       await wait(MIN_FORTUNE_WAIT_MS - elapsed)
     }
     fortuneError.value = err?.message || t('fortune.requestFailed')
+    debugLog('step2.result.failed', {
+      message: err?.message || 'request-failed',
+      elapsedMs: Date.now() - startedAt
+    })
   } finally {
     fortuneLoading.value = false
+    debugLog('step2.submit.done', { loading: fortuneLoading.value })
   }
 }
 
 async function onCopyFortune() {
   if (!fortuneText.value) {
+    debugLog('copy.skip', { reason: 'empty-text' })
     return
   }
 
@@ -177,6 +228,7 @@ async function onCopyFortune() {
       throw new Error('Clipboard API unavailable')
     }
     copyState.value = 'copied'
+    debugLog('copy.success', { textLength: fortuneText.value.length })
     if (copyTimer) {
       clearTimeout(copyTimer)
     }
@@ -185,6 +237,7 @@ async function onCopyFortune() {
     }, 1800)
   } catch {
     fortuneError.value = t('fortune.copyFailed')
+    debugLog('copy.failed')
   }
 }
 

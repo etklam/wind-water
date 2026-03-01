@@ -13,6 +13,9 @@ export default defineNuxtConfig({
     mysqlPort: Number(process.env.MYSQL_PORT || 3306),
     mysqlUser: process.env.MYSQL_USER || '',
     mysqlPassword: process.env.MYSQL_PASSWORD || '',
-    mysqlDatabase: process.env.MYSQL_DATABASE || ''
+    mysqlDatabase: process.env.MYSQL_DATABASE || '',
+    public: {
+      debugFortune: process.env.NUXT_PUBLIC_DEBUG_FORTUNE || ''
+    }
   }
 })

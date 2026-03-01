@@ -1,6 +1,8 @@
 import mysql from 'mysql2/promise'
+import { createServerFortuneLogger } from './debug-log.js'
 
 let pool
+const log = createServerFortuneLogger({ scope: 'repository.fortune-cache' })
 
 export function parseDatabaseUrl(databaseUrl) {
   const url = new URL(String(databaseUrl || ''))
@@ -87,18 +89,23 @@ async function indexExists(db, database, table, indexName) {
 
 export async function ensureFortuneCacheSchema(db, database) {
   if (!(await columnExists(db, database, 'fortune_cache', 'year'))) {
+    log('schema.alter.add-column', { column: 'year' })
     await db.execute('ALTER TABLE fortune_cache ADD COLUMN `year` INT NULL AFTER `mode`')
   }
   if (!(await columnExists(db, database, 'fortune_cache', 'gender'))) {
+    log('schema.alter.add-column', { column: 'gender' })
     await db.execute("ALTER TABLE fortune_cache ADD COLUMN `gender` VARCHAR(16) NOT NULL DEFAULT '' AFTER `mode`")
   }
   if (!(await columnExists(db, database, 'fortune_cache', 'focus_area'))) {
+    log('schema.alter.add-column', { column: 'focus_area' })
     await db.execute("ALTER TABLE fortune_cache ADD COLUMN `focus_area` VARCHAR(128) NOT NULL DEFAULT '' AFTER `gender`")
   }
   if (await indexExists(db, database, 'fortune_cache', 'ux_fortune_cache_key')) {
+    log('schema.alter.drop-index', { index: 'ux_fortune_cache_key' })
     await db.execute('ALTER TABLE fortune_cache DROP INDEX ux_fortune_cache_key')
   }
   if (!(await indexExists(db, database, 'fortune_cache', 'ux_fortune_cache_scope'))) {
+    log('schema.alter.add-index', { index: 'ux_fortune_cache_scope' })
     await db.execute(
       'ALTER TABLE fortune_cache ADD UNIQUE INDEX ux_fortune_cache_scope (cache_key, mode, year, gender, focus_area)'
     )
@@ -111,6 +118,7 @@ export function createFortuneRepository(config) {
 
   async function ensureTable() {
     if (!ensureTablePromise) {
+      log('table.ensure.start')
       ensureTablePromise = db.execute(
         `CREATE TABLE IF NOT EXISTS fortune_cache (
           id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -130,7 +138,9 @@ export function createFortuneRepository(config) {
       )
     }
     await ensureTablePromise
+    log('table.ensure.created-or-exists')
     await ensureFortuneCacheSchema(db, config.database)
+    log('table.ensure.schema-checked')
   }
 
   return {
@@ -140,6 +150,13 @@ export function createFortuneRepository(config) {
       const year = Number.isFinite(scope.year) ? Number(scope.year) : null
       const gender = scope.gender || ''
       const focusArea = scope.focusArea || ''
+      log('cache.find.start', {
+        cacheKey,
+        mode,
+        year,
+        hasGender: Boolean(gender),
+        hasFocusArea: Boolean(focusArea)
+      })
       const [rows] = await db.execute(
         `SELECT cache_key, mode, response_text, model
          FROM fortune_cache
@@ -153,10 +170,12 @@ export function createFortuneRepository(config) {
       )
 
       if (!Array.isArray(rows) || rows.length === 0) {
+        log('cache.find.miss', { cacheKey })
         return null
       }
 
       const row = rows[0]
+      log('cache.find.hit', { cacheKey, model: row.model || '' })
       return {
         cacheKey: row.cache_key,
         mode: row.mode,
@@ -167,6 +186,13 @@ export function createFortuneRepository(config) {
 
     async saveCache(payload) {
       await ensureTable()
+      log('cache.save.start', {
+        cacheKey: payload.cacheKey,
+        mode: payload.mode,
+        year: Number.isFinite(payload.year) ? Number(payload.year) : null,
+        hasGender: Boolean(payload.gender),
+        hasFocusArea: Boolean(payload.focusArea)
+      })
       await db.execute(
         `INSERT INTO fortune_cache
         (cache_key, mode, year, gender, focus_area, request_payload, response_text, model, created_at, updated_at)
@@ -190,6 +216,7 @@ export function createFortuneRepository(config) {
           payload.model
         ]
       )
+      log('cache.save.done', { cacheKey: payload.cacheKey })
     }
   }
 }

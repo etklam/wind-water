@@ -1,6 +1,7 @@
 import { buildFortuneCacheKey } from './key.js'
 import { buildFortunePrompt } from './prompt.js'
 import { computeNayinProfile } from './nayin-engine.js'
+import { createServerFortuneLogger } from './debug-log.js'
 
 function normalizeFiveElements(input) {
   if (!input || typeof input !== 'object') {
@@ -67,21 +68,33 @@ export async function runFortuneCompletion({
   repository,
   provider
 }) {
+  const log = createServerFortuneLogger({ scope: 'service.run-fortune' })
+  const startedAt = Date.now()
   const scope = normalizeScope({ mode, year, gender, focusAreas })
+  log('scope.normalized', {
+    mode: scope.mode,
+    year: scope.year,
+    hasGender: Boolean(scope.gender),
+    focusAreaCount: scope.focusArea ? scope.focusArea.split(',').length : 0
+  })
 
   let profile
   const normalizedTotals = normalizeFiveElements(fiveElements)
   if (normalizedTotals) {
     profile = { totals: normalizedTotals, source: 'provided-five-elements' }
+    log('profile.source', { source: profile.source })
   } else {
     profile = buildProfileFromBirth(birthInput)
+    log('profile.source', { source: 'birth-input', rule: profile.rule })
   }
 
   const cacheInput = buildFingerprintInput({ profile })
 
   const cacheKey = buildFortuneCacheKey(cacheInput)
+  log('cache.lookup.start', { cacheKey })
   const cached = await repository.findByCacheKey(cacheKey, scope)
   if (cached?.responseText) {
+    log('cache.lookup.hit', { cacheKey, model: cached.model || 'cached-model' })
     return {
       source: 'cache',
       cacheKey,
@@ -91,6 +104,7 @@ export async function runFortuneCompletion({
       profile
     }
   }
+  log('cache.lookup.miss', { cacheKey })
 
   const promptMessages = buildFortunePrompt({
     mode: scope.mode,
@@ -100,11 +114,18 @@ export async function runFortuneCompletion({
     focusAreas: scope.focusArea ? scope.focusArea.split(',') : [],
     userMessages
   })
+  log('prompt.built', { messageCount: promptMessages.length })
 
+  const providerStartedAt = Date.now()
   const fresh = await provider.createCompletion({
     mode: scope.mode,
     year: scope.year,
     messages: promptMessages
+  })
+  log('provider.completed', {
+    model: fresh.model,
+    elapsedMs: Date.now() - providerStartedAt,
+    hasText: Boolean(fresh.text)
   })
 
   await repository.saveCache({
@@ -123,6 +144,7 @@ export async function runFortuneCompletion({
     gender: scope.gender,
     focusArea: scope.focusArea
   })
+  log('cache.saved', { cacheKey, mode: scope.mode, elapsedMs: Date.now() - startedAt })
 
   return {
     source: 'openai',
